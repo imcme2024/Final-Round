@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>人工呼吸器管理</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:sans-serif;background:#f8fafc;touch-action:manipulation}
+.tabs{background:#fff;display:flex;border-bottom:2px solid #e5e7eb;position:sticky;top:0;z-index:100;overflow-x:auto}
+.tab{padding:12px 20px;color:#6b7280;cursor:pointer;border:none;background:transparent;font-size:14px;border-bottom:3px solid transparent;transition:all 0.05s;flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:2px}
+.tab:hover{color:#3b82f6;background:#eff6ff}
+.tab.active{color:#fff;background:#3b82f6;border-bottom-color:#1e40af;font-weight:700}
+.tab:first-child{position:sticky;left:0;background:#1e40af;color:#fff;font-weight:700;z-index:1}
+.tab:first-child:hover{background:#1d4ed8;color:#fff}
+.tab:first-child.active{background:#1e40af;color:#fff;border-bottom-color:#fff}
+.tab-ward{font-size:11px;font-weight:600;opacity:0.9}
+.tab-name{font-size:14px;font-weight:600}
+.tab.active .tab-name{font-size:15px}
+.tab-content{display:none;padding:24px;max-width:1600px;margin:0 auto}
+.tab-content.active{display:block}
+.container{background:#fff;padding:24px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.1)}
+h1{color:#1f2937;margin-bottom:24px;font-size:24px;font-weight:700}
+.checker-section{background:#f9fafb;padding:20px;border-radius:8px;margin-bottom:24px;border:1px solid #e5e7eb}
+.checker-section h2{color:#374151;margin-bottom:12px;font-size:16px;font-weight:600}
+.patient-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-top:20px}
+.patient-card{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:20px;cursor:pointer;transition:all 0.1s}
+.patient-card:hover{border-color:#3b82f6;box-shadow:0 4px 12px rgba(59,130,246,0.15);transform:translateY(-2px)}
+.btn{border:none;padding:12px 24px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;transition:all 0.05s}
+.btn:active{transform:scale(0.96)}
+.btn-primary{background:#3b82f6;color:#fff}
+.btn-primary:hover{background:#2563eb}
+.btn-success{background:#10b981;color:#fff}
+.btn-success:hover{background:#059669}
+.btn-secondary{background:#e5e7eb;color:#374151}
+.btn-secondary:hover{background:#d1d5db}
+.btn-danger{background:#ef4444;color:#fff}
+.btn-danger:hover{background:#dc2626}
+table{width:100%;border-collapse:collapse;margin-bottom:20px;table-layout:auto}
+th,td{border:1px solid #e5e7eb;padding:10px;text-align:center;font-size:13px}
+th{background:#f9fafb;color:#374151;font-weight:600}
+.category-header{background:#eff6ff;color:#1e40af;font-weight:600;text-align:left;padding-left:12px}
+.item-label{background:#fafafa;text-align:left;padding-left:16px;font-size:12px;font-weight:600;color:#4b5563}
+.day-header{background:#f3f4f6;font-weight:600}
+table input,table select,table textarea{width:95%;padding:6px 8px;border:1px solid #d1d5db;border-radius:4px;font-size:13px;text-align:center}
+table textarea{min-height:60px;resize:vertical;font-family:sans-serif}
+table input:focus,table select:focus,table textarea:focus{outline:none;border-color:#3b82f6}
+table input:disabled,table textarea:disabled{background:#e5e7eb;color:#6b7280}
+table input[type="number"]::-webkit-inner-spin-button,table input[type="number"]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+table input[type="number"]{-moz-appearance:textfield}
+input[type="checkbox"]{width:18px;height:18px;cursor:pointer}
+input[type="checkbox"].ng-check{accent-color:#ef4444}
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000}
+.modal-content{background:#fff;width:90%;max-width:500px;margin:80px auto;padding:28px;border-radius:12px}
+.modal-content h2{margin-bottom:20px;color:#1f2937;font-size:20px;font-weight:700}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;margin-bottom:6px;font-weight:600;font-size:14px;color:#374151}
+.form-group input,.form-group select{width:100%;padding:10px;border:1px solid #d1d5db;border-radius:6px;font-size:14px}
+.modal-buttons{display:flex;gap:10px;margin-top:20px}
+.modal-buttons button{flex:1;padding:12px;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer}
+.loading{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;padding:24px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.15);z-index:2000;text-align:center}
+.loading.show{display:block}
+.spinner{border:3px solid #e5e7eb;border-top:3px solid #3b82f6;border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite;margin:0 auto 12px}
+@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+.empty-col{background:#fafafa}
+.toolbar{background:#fff;padding:12px 20px;display:flex;gap:12px;border-bottom:1px solid #e5e7eb;flex-wrap:wrap}
+.toolbar button{padding:8px 16px;font-size:13px}
+input[type="checkbox"]{touch-action:manipulation}
+label{touch-action:manipulation;user-select:none}
+.keyboard-close-btn{display:none;position:fixed;right:10px;bottom:280px;width:44px;height:44px;border-radius:50%;background:#ef4444;color:#fff;border:none;font-size:20px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(239,68,68,0.6);z-index:9999;align-items:center;justify-content:center;transition:bottom 0.2s ease}
+.keyboard-close-btn.show{display:flex}
+.keyboard-close-btn:active{transform:scale(0.95);opacity:0.8}
+
+.enter-key-overlay{display:none;position:fixed;right:10px;width:80px;height:44px;background:#3b82f6;color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(59,130,246,0.5);z-index:999;align-items:center;justify-content:center}
+.enter-key-overlay.show{display:flex}
+.enter-key-overlay:active{transform:scale(0.95);opacity:0.8}
+</style>
+</head>
+<body>
+<div class="loading" id="loading"><div class="spinner"></div><p>データを読み込み中...</p></div>
+<button class="keyboard-close-btn" id="closeKeyboardBtn" onclick="closeKeyboard()">✕</button>
+
+<div class="toolbar">
+  <button class="btn btn-secondary" onclick="exportData()">📋 JSONエクスポート</button>
+  <button class="btn btn-secondary" onclick="importData()">📄 データインポート</button>
+  <button class="btn btn-primary" id="gdrive-btn" onclick="toggleGoogleDrive()" style="background:#4285f4">☁️ Google Drive連携</button>
+  <span style="margin-left:auto;font-size:12px;align-self:center;display:flex;align-items:center;gap:12px">
+    <span id="gdrive-status-text" style="display:none;color:#059669;font-weight:600">✓ 同期済み</span>
+    <span id="gdrive-sync-progress" style="display:none;color:#f59e0b;font-weight:600">🔄 同期中...</span>
+    <span id="backupStatus" style="color:#6b7280"></span>
+  </span>
+</div>
+<div class="tabs" id="tabs">
+  <button class="tab active" onclick="showOverview()">装着者一覧</button>
+</div>
+<div id="overview" class="tab-content active">
+  <div class="container">
+    <h1>人工呼吸器装着者一覧</h1>
+    <div class="checker-section">
+      <h2>本日のチェック者</h2>
+      <button onclick="openCheckerModal()" style="width:100%;padding:12px 16px;border:2px solid #d1d5db;border-radius:8px;background:#fff;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:14px">
+        <span id="checkerName">選択してください</span><span>▼</span>
+      </button>
+    </div>
+    <div id="shortagesSummary" style="display:none;background:#fef2f2;border:2px solid #ef4444;padding:16px;border-radius:8px;margin-bottom:20px">
+      <h2 style="color:#991b1b;font-size:16px;font-weight:600;margin-bottom:12px">⚠️ 不足物品(全体)</h2>
+      <div id="shortagesContent"></div>
+    </div>
+    <button class="btn btn-primary" onclick="openAddModal()" style="width:100%;margin-bottom:20px;padding:16px;font-size:16px">+ 新規患者登録</button>
+    <div class="patient-grid" id="patientGrid"></div>
+  </div>
+</div>
+<div id="addModal" class="modal">
+  <div class="modal-content">
+    <h2>新規患者登録</h2>
+    <div class="form-group">
+      <label>呼吸管理タイプ</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
+        <button type="button" onclick="selectVentType('ippv')" id="ippvTypeBtn" style="background:#e5e7eb;color:#374151;padding:16px;font-size:15px;border:none;border-radius:8px;cursor:pointer">IPPV<br><span style="font-size:11px">侵襲的陽圧換気</span></button>
+        <button type="button" onclick="selectVentType('nppv')" id="nppvTypeBtn" style="background:#e5e7eb;color:#374151;padding:16px;font-size:15px;border:none;border-radius:8px;cursor:pointer">NPPV<br><span style="font-size:11px">非侵襲的陽圧換気</span></button>
+      </div>
+    </div>
+    <div class="form-group"><label>患者ID</label><input id="newId" ></div>
+    <div class="form-group"><label>患者氏名</label><input id="newName"></div>
+    <div class="form-group"><label>病室</label><input id="newRoom" ></div>
+    <div class="form-group"><label>導入疾患</label><input id="newDisease"></div>
+    <div class="form-group"><label>導入日</label><input type="date" id="newDate"></div>
+    <div class="form-group"><label>呼吸器</label><select id="newVentilator"><option value="">選択してください</option></select></div>
+    <div class="modal-buttons">
+      <button class="btn btn-primary" onclick="addPatient()">登録</button>
+      <button class="btn btn-secondary" onclick="closeAddModal()">キャンセル</button>
+    </div>
+  </div>
+</div>
+<div id="weanModal" class="modal">
+  <div class="modal-content">
+    <h2>人工呼吸器離脱・削除</h2>
+    <div class="form-group"><label>離脱理由</label><select id="weanReason"><option value="">選択してください</option><option>抜管</option><option>死亡</option><option>転院</option><option>その他</option></select></div>
+    <div class="form-group"><label>離脱日</label><input type="date" id="weanDate"></div>
+    <div class="form-group"><label>備考</label><input id="weanNote" placeholder="任意"></div>
+    <div id="weanConfirm" style="display:none;background:#fef2f2;border:2px solid #ef4444;padding:16px;border-radius:8px;margin-bottom:16px">
+      <p style="color:#991b1b;font-weight:600;margin-bottom:8px">この患者を完全に削除しますか?</p>
+      <p style="color:#7f1d1d;font-size:14px">この操作は取り消せません。</p>
+    </div>
+    <div class="modal-buttons">
+      <button class="btn btn-danger" id="weanDeleteBtn" onclick="showWeanConfirm()">削除する</button>
+      <button class="btn btn-danger" id="weanConfirmBtn" style="display:none" onclick="executeWean()">はい、削除します</button>
+      <button class="btn btn-secondary" onclick="closeWeanModal()">キャンセル</button>
+    </div>
+  </div>
+</div>
+<div id="sedationModal" class="modal" onclick="if(event.target===this) closeSedationModal()">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <h2>薬剤を追加</h2>
+    <div class="form-group">
+      <label>薬剤タイプ</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
+        <button onclick="selectSedationType('sedative')" id="sedTypeBtn" style="background:#86efac;color:#166534;padding:12px;border:none;border-radius:8px;cursor:pointer">鎮静薬</button>
+        <button onclick="selectSedationType('analgesic')" id="anaTypeBtn" style="background:#fbcfe8;color:#9f1239;padding:12px;border:none;border-radius:8px;cursor:pointer">鎮痛薬</button>
+      </div>
+    </div>
+    <div class="form-group" id="drugSelectGroup" style="display:none">
+      <label id="drugLabel">薬剤を選択</label>
+      <div id="drugButtons" style="display:grid;gap:8px;margin-top:8px"></div>
+    </div>
+    <div class="modal-buttons"><button class="btn btn-secondary" onclick="closeSedationModal()">キャンセル</button></div>
+  </div>
+</div>
+<div id="modeModal" class="modal" onclick="if(event.target===this) closeModeModal()">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <h2>モードを選択</h2>
+    <div id="modeModalButtons" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px"></div>
+    <div class="modal-buttons" style="margin-top:16px"><button class="btn btn-secondary" onclick="closeModeModal()">キャンセル</button></div>
+  </div>
+</div>
+<div id="shortageModal" class="modal" onclick="if(event.target===this) closeShortageModal()">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <h2>不足物品を選択</h2>
+    <div style="display:grid;gap:12px;margin-top:12px" id="shortageItems"></div>
+    <div class="modal-buttons">
+      <button class="btn btn-primary" onclick="saveShortages()">確定</button>
+      <button class="btn btn-secondary" onclick="closeShortageModal()">キャンセル</button>
+    </div>
+  </div>
+</div>
+<div id="checkerModal" class="modal" onclick="if(event.target===this) closeCheckerModal()">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <h2>チェック者を選択</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px" id="checkerButtons"></div>
+    <div class="modal-buttons" style="margin-top:16px"><button class="btn btn-secondary" onclick="closeCheckerModal()">キャンセル</button></div>
+  </div>
+</div>
+<script>
+var st={patients:[],checker:'',weanIdx:null,sedationPatientIdx:null,sedationRecordIdx:null,modePatientIdx:null,modeRecordIdx:null,shortagePatientIdx:null,shortageRecordIdx:null,tempShortages:{},selectedVentType:''};
+var gdriveToken=null,gdriveFileId=null,syncInterval=null,lastSyncTime='',GDRIVE_FILE_NAME='ventilator-data.json';
+var SUPPLY_ITEMS=['人工鼻','フレックスチューブ','トラックケア挿管用','トラックケア気切用','使用中点検用紙(IPPV用)','使用中点検用紙(加温加湿器用)'];
+var NPPV_SUPPLY_ITEMS=['精製水','使用中点検用紙(NPPV用)'];
+var HFNC_SUPPLY_ITEMS=['精製水','使用中点検用紙(HFNC用)'];
+var CHECKER_NAMES=['山本　桂','下田　直人','櫻井　剛','伊久山　賢一','藤原　翔','池本　尚平','角田　壮真','榎嶋　啓介','中島　愛美','松井　秀真','畑田　祥真','南口　小春','安原　萌仁香','今道　照一','荻原　明依','園田　光汰','乾　孝成'];
+var VENTILATORS=[{id:'IAV01',name:'Savina',type:'savina',ventType:'ippv'},{id:'IAV02',name:'Savina',type:'savina',ventType:'ippv'},{id:'IAV04',name:'Savina300',type:'savina',ventType:'ippv'},{id:'IAV05',name:'Savina300',type:'savina',ventType:'ippv'},{id:'IAV06',name:'Savina300 select',type:'savina300select',ventType:'ippv'},{id:'IAV07',name:'Savina300 select',type:'savina300select',ventType:'ippv'},{id:'IAV08',name:'Savina300 select',type:'savina300select',ventType:'ippv'},{id:'IAV09',name:'Evita2dura',type:'evita2',ventType:'ippv'},{id:'IAV10',name:'Evita XL',type:'xl',ventType:'ippv'},{id:'IAV11',name:'Evita XL',type:'xl',ventType:'ippv'},{id:'IAV12',name:'Evita V300',type:'v300',ventType:'ippv'},{id:'IAV13',name:'Infinity V500',type:'v300',ventType:'ippv'},{id:'IAV14',name:'Infinity V500',type:'v300',ventType:'ippv'},{id:'IAV51',name:'V60',type:'v60',ventType:'nppv'},{id:'IAV52',name:'V60',type:'v60',ventType:'nppv'},{id:'IAV53',name:'V60',type:'v60',ventType:'nppv'},{id:'IAV54',name:'V60',type:'v60',ventType:'nppv'},{id:'IAV55',name:'V60',type:'v60',ventType:'nppv'},{id:'IAV56',name:'V60',type:'v60',ventType:'nppv'},{id:'IAV57',name:'V60',type:'v60',ventType:'nppv'},{id:'IAV58',name:'MaxVenturi',type:'maxventury',ventType:'nppv'},{id:'IAV59',name:'Airvo2',type:'airvo2',ventType:'nppv'},{id:'IAV60',name:'Airvo2',type:'airvo2',ventType:'nppv'},{id:'IAVR-V60',name:'V60',type:'v60',ventType:'nppv'},{id:'IAVR-Airvo2',name:'Airvo2',type:'airvo2',ventType:'nppv'},{id:'IAVR-MaxVenturi',name:'MaxVenturi',type:'maxventury',ventType:'nppv'}];
+var MODES_BY_TYPE={savina:['SIMV','BIPAP','CPAP','IPPV','一時離脱中'],savina300select:['SIMV','BIPAP','CPAP','IPPV','PC-AC','一時離脱中'],evita2:['SIMV','BIPAP','CPAP','IPPV','一時離脱中'],xl:['VC-SIMV','PC-BIPAP','CPAP/PS','一時離脱中'],v300:['VC-SIMV','PC-SIMV','PC-BIPAP','SPN-CPAP/PS','PC-APRV','VC-AC','PC-AC','一時離脱中'],v60:['S/T','CPAP','AVAPS','一時離脱中'],airvo2:['HFNC','一時離脱中'],maxventury:['HFNC','一時離脱中']};
+
+function updateKeyboardButtons(){
+  var a=document.activeElement;
+  var c=document.getElementById('closeKeyboardBtn');
+  
+  if(!c)return;
+  
+  if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'||a.tagName==='SELECT')){
+    if(a.type==='checkbox'){
+      c.classList.remove('show');
+      return;
+    }
+    
+    // すぐに表示（高速レスポンス）
+    c.classList.add('show');
+    c.style.right='10px';
+    
+    // キーボード高さ検出（少し遅れても問題ない）
+    if(window.visualViewport){
+      setTimeout(function(){
+        var v=window.visualViewport.height;
+        var w=window.innerHeight;
+        var k=w-v;
+        if(k>100){
+          var b=k+10;
+          c.style.bottom=b+'px';
+        }else{
+          c.style.bottom='280px';
+        }
+      },100);
+    }else{
+      c.style.bottom='280px';
+    }
+  }else{
+    c.classList.remove('show');
+  }
+}
+
+function closeKeyboard(){if(document.activeElement)document.activeElement.blur();}
+function handleEnterPress(){var c=document.activeElement;if(c&&(c.tagName==='INPUT'||c.tagName==='TEXTAREA'))moveToNextInput();}
+function moveToNextInput(){var inputs=Array.from(document.querySelectorAll('input:not([type="checkbox"]):not([disabled]),textarea:not([disabled]),select:not([disabled])'));var idx=inputs.indexOf(document.activeElement);if(idx>-1&&idx<inputs.length-1){inputs[idx+1].focus();if(inputs[idx+1].select)inputs[idx+1].select();}}
+document.addEventListener('focusin',function(e){updateKeyboardButtons();});
+document.addEventListener('focusout',function(e){setTimeout(updateKeyboardButtons,50);});
+if(window.visualViewport){window.visualViewport.addEventListener('resize',updateKeyboardButtons);window.visualViewport.addEventListener('scroll',updateKeyboardButtons);}
+
+
+function getWard(r){if(!r)return'';var n=parseInt(r);if(isNaN(n))return'';if(n%10===4||n%10===9)return'';if(n>=351&&n<=360)return'ICU';if(n>=301&&n<=315)return'HCU';if(n>=581&&n<=587)return'SCU';if(n>=501&&n<=528)return'東5';if(n>=551&&n<=571)return'西5';if(n>=601&&n<=628)return'東6';if(n>=651&&n<=678)return'西6';if(n>=701&&n<=727)return'東7';if(n>=751&&n<=778)return'西7';return'';}
+function getWardPriority(w){var o=['ICU','HCU','SCU','東5','西5','東6','西6','東7','西7'];var i=o.indexOf(w);return i===-1?999:i;}
+function getDayNumber(s,r){if(!s||!r)return'';var d=Math.floor((new Date(r)-new Date(s))/(1000*60*60*24));return d+1;}
+function getJSTDate(){return new Date(new Date().getTime()+9*60*60*1000).toISOString().split('T')[0];}
+function getJSTTime(){return new Date(new Date().getTime()+9*60*60*1000).toISOString().split('T')[1].slice(0,5);}
+function debounce(func,wait){var timeout;return function(){var args=arguments;clearTimeout(timeout);timeout=setTimeout(function(){func.apply(null,args);},wait);};}
+function formatPatientId(id){var s=String(id).replace(/\D/g,'');return s.padStart(8,'0').substring(0,8);}
+function validateAndFormatNumber(v,min,max,dec){if(!v||v==='')return'';var n=parseFloat(v);if(isNaN(n))return'';if(n<min||n>max)return'';return dec!==undefined?n.toFixed(dec):n.toString();}
+function formatFiO2(v){if(!v||v==='')return'';var n=parseFloat(v);if(isNaN(n))return'';if(n>=21&&n<=100)n=n/100;if(n<0.21||n>1.0)return'';return n.toFixed(2);}
+function formatDec1(v){if(!v||v==='')return'';var n=parseFloat(v);if(isNaN(n))return'';return n.toFixed(1);}
+
+var scheduleSave=debounce(function(){try{localStorage.setItem('v:p',JSON.stringify(st.patients));localStorage.setItem('v:c',st.checker);checkAndBackup();}catch(e){console.error('保存エラー:',e);}},500);
+function saveNow(){try{localStorage.setItem('v:p',JSON.stringify(st.patients));localStorage.setItem('v:c',st.checker);checkAndBackup();if(gdriveToken)syncToGoogleDrive();}catch(e){console.error('保存エラー:',e);}}
+function checkAndBackup(){try{var today=getJSTDate();if(localStorage.getItem('v:lastBackup')!==today){localStorage.setItem('v:backup:'+today,JSON.stringify({patients:st.patients,checker:st.checker,date:today}));localStorage.setItem('v:lastBackup',today);cleanOldBackups();updateBackupStatus();}}catch(e){}}
+function cleanOldBackups(){var keys=[];for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.startsWith('v:backup:'))keys.push(k);}keys.sort().reverse();for(var j=30;j<keys.length;j++)localStorage.removeItem(keys[j]);}
+function updateBackupStatus(){var lb=localStorage.getItem('v:lastBackup');var el=document.getElementById('backupStatus');if(el&&lb)el.textContent='最終バックアップ: '+lb;}
+function showLoading(){document.getElementById('loading').classList.add('show');}
+function hideLoading(){document.getElementById('loading').classList.remove('show');}
+function getTotalShortages(){var totals={};var today=getJSTDate();st.patients.forEach(function(p){if(!p.records||p.records.length===0)return;var lr=p.records[p.records.length-1];if(lr.date!==today)return;if(!lr.shortages)return;Object.keys(lr.shortages).forEach(function(item){var cnt=lr.shortages[item];if(cnt>0)totals[item]=(totals[item]||0)+cnt;});});return totals;}
+
+function exportData(){if(st.patients.length===0){alert('現在装着中の患者がいません');return;}var data={patients:st.patients,checker:st.checker,exportDate:getJSTDate(),exportTime:getJSTTime()};var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download='ventilator-backup-'+getJSTDate()+'.json';a.click();URL.revokeObjectURL(url);alert('現在装着中の患者データ('+st.patients.length+'名)をバックアップしました');}
+function importData(){var input=document.createElement('input');input.type='file';input.accept='application/json';input.onchange=function(e){var file=e.target.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(ev){try{var data=JSON.parse(ev.target.result);if(data.patients){st.patients=data.patients;st.checker=data.checker||'';saveNow();location.reload();alert('データをインポートしました');}else{alert('無効なデータ形式です');}}catch(err){alert('インポートエラー:'+err.message);}};reader.readAsText(file);};input.click();}
+function generateExcelHTML(weanedPatients){var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>人工呼吸器管理記録</title></head><body>';weanedPatients.forEach(function(item){var p=item.patient;var wi=item.weanInfo;html+='<h2>'+p.name+'('+p.id+')</h2>';if(wi)html+='<p>離脱日:'+wi.date+' 理由:'+wi.reason+'</p>';var records=p.records||[];if(records.length===0){html+='<p>記録なし</p>';return;}html+='<table border="1"><tr><th>項目</th>';records.forEach(function(r,i){var d=r.date&&p.startDate?Math.floor((new Date(r.date)-new Date(p.startDate))/(86400000))+1:i+1;html+='<th>Day '+d+'<br>'+r.date+'</th>';});html+='</tr>';[['date','日付'],['time','時間'],['mode','モード'],['tv','TV/Pi'],['rr','RR'],['fio2','FiO2'],['ti','Ti'],['ps','PS'],['peep','PEEP'],['pip','PIP'],['vte','Vte'],['rrM','RR実測'],['spo2','SpO2'],['notes','備考'],['checker','確認者']].forEach(function(kl){html+='<tr><td>'+kl[1]+'</td>';records.forEach(function(r){html+='<td>'+(r[kl[0]]||'-')+'</td>';});html+='</tr>';});html+='</table>';});html+='</body></html>';return html;}
+
+function init(){showLoading();try{var p=localStorage.getItem('v:p');if(p)st.patients=JSON.parse(p);var c=localStorage.getItem('v:c');if(c)st.checker=c;st.patients.forEach(function(patient){if(patient.records){patient.records.forEach(function(record){if(!record.hasOwnProperty('notes'))record.notes='';});}});renderGrid();updateChecker();initCheckerButtons();st.patients.forEach(function(p,i){ensureTab(i,p);});sortTabs();checkAndBackup();updateBackupStatus();}catch(e){alert('初期化エラー:'+e.message);}hideLoading();}
+function initCheckerButtons(){var container=document.getElementById('checkerButtons');if(!container)return;container.innerHTML='';CHECKER_NAMES.forEach(function(name){var btn=document.createElement('button');btn.className='btn btn-secondary';btn.style.cssText='padding:14px;font-size:14px';btn.textContent=name;btn.onclick=function(){selectChecker(name);};container.appendChild(btn);});}
+
+function ensureTab(i,p){
+  var tab=document.getElementById('tab-'+i);
+  var ward=getWard(p.room);
+  var wardText=ward||'未設定';
+  var nameText=p.name||'患者'+(i+1);
+  
+  if(!tab){
+    tab=document.createElement('button');
+    tab.className='tab';
+    tab.id='tab-'+i;
+    tab.setAttribute('data-index',i);
+    tab.setAttribute('data-ward-priority',getWardPriority(ward));
+    tab.setAttribute('data-room',p.room||'9999');
+    tab.innerHTML='<span class="tab-ward">'+wardText+'</span><span class="tab-name">'+nameText+'</span>';
+    tab.onclick=(function(idx){return function(){showPatient(idx);};})(i);
+    document.getElementById('tabs').appendChild(tab);
+  }else{
+    tab.innerHTML='<span class="tab-ward">'+wardText+'</span><span class="tab-name">'+nameText+'</span>';
+    tab.setAttribute('data-ward-priority',getWardPriority(ward));
+    tab.setAttribute('data-room',p.room||'9999');
+  }
+}
+
+function sortTabs(){
+  var tabsContainer=document.getElementById('tabs');
+  var allTabs=Array.from(tabsContainer.querySelectorAll('.tab'));
+  var overviewTab=allTabs[0];
+  var patientTabs=allTabs.slice(1);
+  
+  // 患者データを使って並べ替え（一覧と同じロジック）
+  patientTabs.sort(function(a,b){
+    var aIdx=parseInt(a.getAttribute('data-index'));
+    var bIdx=parseInt(b.getAttribute('data-index'));
+    var aPatient=st.patients[aIdx];
+    var bPatient=st.patients[bIdx];
+    
+    if(!aPatient||!bPatient)return 0;
+    
+    var aWard=getWard(aPatient.room);
+    var bWard=getWard(bPatient.room);
+    var aPriority=getWardPriority(aWard);
+    var bPriority=getWardPriority(bWard);
+    
+    if(aPriority!==bPriority)return aPriority-bPriority;
+    
+    var aRoom=parseInt(aPatient.room)||9999;
+    var bRoom=parseInt(bPatient.room)||9999;
+    return aRoom-bRoom;
+  });
+  
+  tabsContainer.innerHTML='';
+  tabsContainer.appendChild(overviewTab);
+  patientTabs.forEach(function(tab){
+    tabsContainer.appendChild(tab);
+  });
+}
+
+function updateChecker(){document.getElementById('checkerName').textContent=st.checker||'選択してください';}
+function openCheckerModal(){document.getElementById('checkerModal').style.display='block';}
+function closeCheckerModal(){document.getElementById('checkerModal').style.display='none';}
+function selectChecker(n){st.checker=n;updateChecker();closeCheckerModal();saveNow();}
+function renderGrid(){var g=document.getElementById('patientGrid');g.innerHTML='';var totals=getTotalShortages();var hasSh=Object.keys(totals).length>0;var sDiv=document.getElementById('shortagesSummary');if(hasSh){sDiv.style.display='block';var sh='<div style="display:grid;gap:8px">';Object.keys(totals).forEach(function(item){sh+='<div style="display:flex;justify-content:space-between;padding:8px 12px;background:#fff;border-radius:4px"><span style="font-weight:600;color:#7f1d1d">'+item+'</span><span style="font-weight:700;color:#991b1b">'+totals[item]+'個</span></div>';});sh+='</div>';document.getElementById('shortagesContent').innerHTML=sh;}else{sDiv.style.display='none';}var sorted=st.patients.map(function(p,i){return{p:p,i:i,ward:getWard(p.room),priority:getWardPriority(getWard(p.room)),roomNum:parseInt(p.room)||0};}).sort(function(a,b){if(a.priority!==b.priority)return a.priority-b.priority;return a.roomNum-b.roomNum;});var curWard='';sorted.forEach(function(item){var ward=item.ward;var p=item.p;var i=item.i;var dw=ward||'未選択';if(dw!==curWard){curWard=dw;var wh=document.createElement('h3');wh.style.cssText='margin:16px 0 8px 0;padding:4px 12px;background:'+(ward?'#1e40af':'#6b7280')+';color:white;border-radius:6px;font-size:14px;font-weight:700;grid-column:1 / -1';wh.textContent='■ '+dw;g.appendChild(wh);}var c=document.createElement('div');var isN=p.ventType==='nppv';c.className='patient-card';c.style.cssText='border:2px solid '+(isN?'#10b981':'#3b82f6')+';background:'+(isN?'#f0fdf4':'#eff6ff');c.onclick=(function(idx){return function(){showPatient(idx);};})(i);c.innerHTML='<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px"><span style="font-size:16px;font-weight:700;color:#1e40af">'+(ward||'未設定')+'</span><span style="font-size:14px;color:#374151">'+(p.room||'-')+'</span><span style="font-size:15px;font-weight:600;color:#1f2937;margin-left:4px">'+(p.name||'未設定')+'</span></div><div style="font-size:13px;color:#6b7280">ID: '+(p.id||'-')+'　導入日: '+(p.startDate||'-')+'</div>';g.appendChild(c);});}
+
+function openAddModal(){st.selectedVentType='';document.getElementById('newVentilator').innerHTML='<option value="">選択してください</option>';document.getElementById('ippvTypeBtn').style.background='#e5e7eb';document.getElementById('ippvTypeBtn').style.color='#374151';document.getElementById('nppvTypeBtn').style.background='#e5e7eb';document.getElementById('nppvTypeBtn').style.color='#374151';document.getElementById('addModal').style.display='block';}
+function selectVentType(vt){st.selectedVentType=vt;if(vt==='ippv'){document.getElementById('ippvTypeBtn').style.background='#3b82f6';document.getElementById('ippvTypeBtn').style.color='#fff';document.getElementById('nppvTypeBtn').style.background='#e5e7eb';document.getElementById('nppvTypeBtn').style.color='#374151';}else{document.getElementById('nppvTypeBtn').style.background='#10b981';document.getElementById('nppvTypeBtn').style.color='#fff';document.getElementById('ippvTypeBtn').style.background='#e5e7eb';document.getElementById('ippvTypeBtn').style.color='#374151';}var sel=document.getElementById('newVentilator');sel.innerHTML='<option value="">選択してください</option>';VENTILATORS.filter(function(v){return v.ventType===vt;}).forEach(function(v){var opt=document.createElement('option');opt.value=v.id;var displayId=v.id.indexOf('IAVR-')===0?'IAVR':v.id;opt.textContent=displayId+' : '+v.name;sel.appendChild(opt);});}
+function closeAddModal(){document.getElementById('addModal').style.display='none';['newId','newName','newRoom','newDisease','newDate'].forEach(function(id){document.getElementById(id).value='';});document.getElementById('newVentilator').value='';}
+function addPatient(){if(!st.selectedVentType){alert('呼吸管理タイプを選択してください');return;}var vid=document.getElementById('newVentilator').value;var vent=VENTILATORS.find(function(v){return v.id===vid;});var imode=(vent&&(vent.type==='airvo2'||vent.type==='maxventury'))?'HFNC':'';var np={id:formatPatientId(document.getElementById('newId').value),name:document.getElementById('newName').value,room:document.getElementById('newRoom').value,disease:document.getElementById('newDisease').value,startDate:document.getElementById('newDate').value,ventilatorId:vid,ventType:st.selectedVentType,records:[{date:'',time:'',mode:imode,tv:'',rr:'',fio2:'',ti:'',ps:'',peep:'',pip:'',vte:'',rrM:'',spo2:'',sedations:[],analgesics:[],cuff:false,supplyOK:false,supplyNG:false,shortages:{},notes:'',checker:'',waterOK:false}]};st.patients.push(np);closeAddModal();renderGrid();var idx=st.patients.indexOf(np);if(idx!==-1){ensureTab(idx,np);sortTabs();showPatient(idx);saveNow();}}
+
+function openWeanModal(i){st.weanIdx=i;var p=st.patients[i];document.getElementById('weanDate').value=getJSTDate();var sel=document.getElementById('weanReason');sel.innerHTML='<option value="">選択してください</option><option>抜管</option><option>死亡</option><option>転院</option>';var opt=document.createElement('option');opt.textContent=(p.ventType==='ippv')?'NPPV/HFNCに移行':'IPPVに移行';sel.appendChild(opt);var opt2=document.createElement('option');opt2.textContent='その他';sel.appendChild(opt2);document.getElementById('weanModal').style.display='block';document.getElementById('weanConfirm').style.display='none';document.getElementById('weanDeleteBtn').style.display='inline-block';document.getElementById('weanConfirmBtn').style.display='none';}
+function closeWeanModal(){document.getElementById('weanModal').style.display='none';document.getElementById('weanReason').value='';document.getElementById('weanDate').value='';document.getElementById('weanNote').value='';st.weanIdx=null;}
+function showWeanConfirm(){if(!document.getElementById('weanReason').value){alert('離脱理由を選択してください');return;}if(!document.getElementById('weanDate').value){alert('離脱日を入力してください');return;}document.getElementById('weanConfirm').style.display='block';document.getElementById('weanDeleteBtn').style.display='none';document.getElementById('weanConfirmBtn').style.display='inline-block';}
+function executeWean(){var dp=st.patients[st.weanIdx];var reason=document.getElementById('weanReason').value;var date=document.getElementById('weanDate').value;var note=document.getElementById('weanNote').value;var html=generateExcelHTML([{patient:dp,weanInfo:{reason:reason,date:date,note:note}}]);var blob=new Blob([html],{type:'text/html;charset=utf-8'});var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download=(dp.name||'患者').replace(/\s/g,'_')+'_'+getJSTDate()+'.html';a.click();URL.revokeObjectURL(url);var isTransition=(reason==='NPPV/HFNCに移行'&&dp.ventType==='ippv')||(reason==='IPPVに移行'&&dp.ventType==='nppv');if(isTransition){var newVentType=dp.ventType==='ippv'?'nppv':'ippv';var vent=VENTILATORS.find(function(v){return v.id===dp.ventilatorId;});var imode=(vent&&(vent.type==='airvo2'||vent.type==='maxventury'))?'HFNC':'';var newPatient={id:dp.id,name:dp.name,room:dp.room,disease:dp.disease,startDate:getJSTDate(),ventilatorId:'',ventType:newVentType,records:[{date:'',time:'',mode:imode,tv:'',rr:'',fio2:'',ti:'',ps:'',peep:'',pip:'',vte:'',rrM:'',spo2:'',sedations:[],analgesics:[],cuff:false,supplyOK:false,supplyNG:false,shortages:{},notes:'',checker:'',waterOK:false}]};st.patients.push(newPatient);}st.patients.splice(st.weanIdx,1);saveNow();closeWeanModal();Array.from(document.getElementById('tabs').querySelectorAll('button')).forEach(function(t,i){if(i>0)t.remove();});Array.from(document.querySelectorAll('.tab-content')).forEach(function(c){if(c.id!=='overview')c.remove();});renderGrid();showOverview();if(isTransition){setTimeout(function(){alert('患者記録をエクスポートしました\n\n'+(newVentType==='nppv'?'NPPV':'IPPV')+'の新規シートを作成しました');},100);}else{setTimeout(function(){alert('患者記録をエクスポートしました');},100);}}
+
+function copyPrev(i){var p=st.patients[i];var l=p.records.length-1;if(l<0)return;var s=p.records[l];var nd=getJSTDate();var nt=getJSTTime();var isFirst=p.records.length===1&&!p.records[0].date&&!p.records[0].mode;var isSameDay=!isFirst&&s.date===nd;var vent=VENTILATORS.find(function(v){return v.id===p.ventilatorId;});var isHFNC=vent&&(vent.type==='airvo2'||vent.type==='maxventury');var actSed=(s.sedations||[]).filter(function(x){return!x.discontinued;});var actAna=(s.analgesics||[]).filter(function(x){return!x.discontinued;});var sourceRec=s;if(s.mode==='一時離脱中'){for(var ri=p.records.length-2;ri>=0;ri--){if(p.records[ri].mode&&p.records[ri].mode!=='一時離脱中'){sourceRec=p.records[ri];break;}}}var newRec={date:nd,time:nt,mode:isHFNC?'HFNC':(isFirst?'':(s.mode==='一時離脱中'?sourceRec.mode:s.mode||'')),tv:isFirst?'':(s.mode==='一時離脱中'?sourceRec.tv:s.tv)||'',rr:isFirst?'':(s.mode==='一時離脱中'?sourceRec.rr:s.rr)||'',fio2:isFirst?'':(s.mode==='一時離脱中'?sourceRec.fio2:s.fio2)||'',ti:isFirst?'':(s.mode==='一時離脱中'?sourceRec.ti:s.ti)||'',ps:isFirst?'':(s.mode==='一時離脱中'?sourceRec.ps:s.ps)||'',peep:isFirst?'':(s.mode==='一時離脱中'?sourceRec.peep:s.peep)||'',pip:'',vte:'',rrM:'',spo2:'',sedations:JSON.parse(JSON.stringify(actSed)),analgesics:JSON.parse(JSON.stringify(actAna)),cuff:false,supplyOK:false,supplyNG:false,shortages:{},notes:'',checker:st.checker,waterOK:false};if(isFirst||isSameDay){p.records[l]=newRec;}else{p.records.push(newRec);}var sy=window.scrollY;var cnt=document.getElementById('patient-'+i);if(cnt)cnt.remove();showPatient(i);setTimeout(function(){window.scrollTo(0,sy);},50);saveNow();}
+
+function showOverview(){document.querySelectorAll('.tab,.tab-content').forEach(function(x){x.classList.remove('active');});document.querySelectorAll('.tab')[0].classList.add('active');document.getElementById('overview').classList.add('active');}
+function showPatient(i){var p=st.patients[i];if(!p)return;p.records.forEach(function(r){if(!r.sedations)r.sedations=[];if(!r.analgesics)r.analgesics=[];if(!r.hasOwnProperty('notes'))r.notes='';});ensureTab(i,p);sortTabs();var cnt=document.getElementById('patient-'+i);if(!cnt){cnt=document.createElement('div');cnt.id='patient-'+i;cnt.className='tab-content';document.body.appendChild(cnt);}renderFull(i,p,cnt);document.querySelectorAll('.tab,.tab-content').forEach(function(x){x.classList.remove('active');});document.getElementById('tab-'+i).classList.add('active');cnt.classList.add('active');}
+
+function updHeader(i,k,v){
+  var p=st.patients[i];
+  if(k==='ventilatorId'&&v!==p[k]){
+    var newVent=VENTILATORS.find(function(vent){return vent.id===v;});
+    var oldVent=VENTILATORS.find(function(vent){return vent.id===p[k];});
+    if(newVent&&oldVent&&newVent.type!==oldVent.type){
+      var lastIdx=p.records.length-1;
+      if(lastIdx>=0){
+        var lr=p.records[lastIdx];
+        var newMode=newVent&&(newVent.type==='airvo2'||newVent.type==='maxventury')?'HFNC':'';
+        lr.mode=newMode;
+        lr.tv='';lr.rr='';lr.fio2='';lr.ti='';lr.ps='';lr.peep='';
+      }
+    }
+  }
+  p[k]=v;
+  if(k==='name'||k==='room'){
+    var t=document.getElementById('tab-'+i);
+    if(t){
+      var ward=getWard(p.room);
+      var wardText=ward||'未設定';
+      var nameText=p.name||'患者'+(i+1);
+      t.innerHTML='<span class="tab-ward">'+wardText+'</span><span class="tab-name">'+nameText+'</span>';
+      t.setAttribute('data-ward-priority',getWardPriority(ward));
+      t.setAttribute('data-room',p.room||'9999');
+      sortTabs();
+    }
+  }
+  saveNow();
+  renderGrid();
+  var cnt=document.getElementById('patient-'+i);
+  if(cnt)renderFull(i,st.patients[i],cnt);
+}
+
+function updDate(i,ri,v){if(!st.patients[i]||!st.patients[i].records[ri])return;st.patients[i].records[ri].date=v;saveNow();var p=st.patients[i];if(p.ventType==='nppv')updateNPPVTb(i,p);else updateTb(i,p);}
+function upd(i,ri,k,v){if(!st.patients[i]||!st.patients[i].records[ri])return;if(k==='fio2')v=formatFiO2(v);else if(k==='ti'||k==='ps'||k==='peep')v=formatDec1(v);else if(k==='tv')v=validateAndFormatNumber(v,0,2000,0);else if(k==='rr'||k==='rrM')v=validateAndFormatNumber(v,0,100,0);else if(k==='pip')v=validateAndFormatNumber(v,0,100,0);else if(k==='vte')v=validateAndFormatNumber(v,0,3000,0);else if(k==='spo2')v=validateAndFormatNumber(v,0,100,0);st.patients[i].records[ri][k]=v;saveNow();var p=st.patients[i];if(p.ventType==='nppv')updateNPPVTb(i,p);else updateTb(i,p);}
+function updSed(i,ri,si,k,v){var p=st.patients[i];if(!p||!p.records[ri])return;if(!p.records[ri].sedations[si])return;p.records[ri].sedations[si][k]=v;saveNow();}
+function updAna(i,ri,ai,k,v){var p=st.patients[i];if(!p||!p.records[ri])return;if(!p.records[ri].analgesics[ai])return;p.records[ri].analgesics[ai][k]=v;saveNow();}
+function rmSed(i,ri,si){if(!confirm('鎮静薬'+(si+1)+'を中止しますか？'))return;st.patients[i].records[ri].sedations[si].discontinued=true;saveNow();updateTb(i,st.patients[i]);}
+function rmAna(i,ri,ai){if(!confirm('鎮痛薬'+(ai+1)+'を中止しますか？'))return;st.patients[i].records[ri].analgesics[ai].discontinued=true;saveNow();updateTb(i,st.patients[i]);}
+function handleSupplyOK(i,ri,checked){if(!st.patients[i]||!st.patients[i].records[ri])return;var rec=st.patients[i].records[ri];rec.supplyOK=checked;if(checked){rec.supplyNG=false;rec.shortages={};}saveNow();var p=st.patients[i];if(p.ventType==='nppv')updateNPPVTb(i,p);else updateTb(i,p);renderGrid();}
+function handleSupplyNG(i,ri,checked){if(!st.patients[i]||!st.patients[i].records[ri])return;var rec=st.patients[i].records[ri];if(!checked&&rec.supplyNG){setTimeout(function(){var p=st.patients[i];if(p.ventType==='nppv')updateNPPVTb(i,p);else updateTb(i,p);},10);openShortageModal(i,ri);return;}rec.supplyNG=checked;if(checked){rec.supplyOK=false;openShortageModal(i,ri);}saveNow();var p=st.patients[i];if(p.ventType==='nppv')updateNPPVTb(i,p);else updateTb(i,p);renderGrid();}
+
+function openShortageModal(i,ri){st.shortagePatientIdx=i;st.shortageRecordIdx=ri;var p=st.patients[i];var r=p.records[ri];var vent=VENTILATORS.find(function(v){return v.id===p.ventilatorId;});var isHFNC=vent&&(vent.type==='airvo2'||vent.type==='maxventury');var items=isHFNC?HFNC_SUPPLY_ITEMS:p.ventType==='nppv'?NPPV_SUPPLY_ITEMS:SUPPLY_ITEMS;st.tempShortages=JSON.parse(JSON.stringify(r.shortages||{}));var cont=document.getElementById('shortageItems');cont.innerHTML='';items.forEach(function(item){var div=document.createElement('div');div.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:12px;background:#fef2f2;border-radius:6px';var safeId=item.replace(/[\(\)]/g,'_');div.innerHTML='<span style="font-weight:600">'+item+'</span><div style="display:flex;align-items:center;gap:8px"><button onclick="chSh(\''+item+'\',-1)" style="padding:4px 10px;background:#3b82f6;color:white;border:none;border-radius:4px;cursor:pointer;font-size:16px">−</button><span id="shc-'+safeId+'" style="min-width:24px;text-align:center;font-weight:700">'+(st.tempShortages[item]||0)+'</span><button onclick="chSh(\''+item+'\',1)" style="padding:4px 10px;background:#ef4444;color:white;border:none;border-radius:4px;cursor:pointer;font-size:16px">＋</button></div>';cont.appendChild(div);});document.getElementById('shortageModal').style.display='block';}
+function chSh(item,d){st.tempShortages[item]=Math.max(0,(st.tempShortages[item]||0)+d);var el=document.getElementById('shc-'+item.replace(/[\(\)]/g,'_'));if(el)el.textContent=st.tempShortages[item];}
+function saveShortages(){if(st.shortagePatientIdx===null)return;st.patients[st.shortagePatientIdx].records[st.shortageRecordIdx].shortages=JSON.parse(JSON.stringify(st.tempShortages));saveNow();renderGrid();closeShortageModal();}
+function closeShortageModal(){document.getElementById('shortageModal').style.display='none';st.shortagePatientIdx=null;st.shortageRecordIdx=null;st.tempShortages={};}
+
+function showSedMenu(i){st.sedationPatientIdx=i;var p=st.patients[i];st.sedationRecordIdx=p.records.length-1;document.getElementById('drugSelectGroup').style.display='none';document.getElementById('sedTypeBtn').style.background='#86efac';document.getElementById('sedTypeBtn').style.color='#166534';document.getElementById('anaTypeBtn').style.background='#fbcfe8';document.getElementById('anaTypeBtn').style.color='#9f1239';document.getElementById('sedationModal').style.display='block';}
+function closeSedationModal(){document.getElementById('sedationModal').style.display='none';st.sedationPatientIdx=null;st.sedationRecordIdx=null;}
+function selectSedationType(type){var isSed=(type==='sedative');document.getElementById('sedTypeBtn').style.background=isSed?'#166534':'#86efac';document.getElementById('sedTypeBtn').style.color=isSed?'#fff':'#166534';document.getElementById('anaTypeBtn').style.background=!isSed?'#9f1239':'#fbcfe8';document.getElementById('anaTypeBtn').style.color=!isSed?'#fff':'#9f1239';document.getElementById('drugLabel').textContent=isSed?'鎮静薬を選択':'鎮痛薬を選択';document.getElementById('drugSelectGroup').style.display='block';var drugs=isSed?['デクスメデトミジン','ミダゾラム','プロポフォール']:['フェンタニル','レミフェンタニル','モルヒネ'];var cont=document.getElementById('drugButtons');cont.innerHTML='';drugs.forEach(function(drug){var btn=document.createElement('button');btn.className='btn btn-secondary';btn.style.cssText='padding:12px;font-size:14px';btn.textContent=drug;btn.onclick=(function(d){return function(){addDrug(isSed?'sedation':'analgesic',d);};})(drug);cont.appendChild(btn);});}
+function addDrug(drugType,drugName){var i=st.sedationPatientIdx;var ri=st.sedationRecordIdx;if(i===null||ri===null)return;var p=st.patients[i];var rec=p.records[ri];if(drugType==='sedation'){if(!rec.sedations)rec.sedations=[];rec.sedations.push({drug:drugName,dose:'',discontinued:false});}else{if(!rec.analgesics)rec.analgesics=[];rec.analgesics.push({drug:drugName,dose:'',discontinued:false});}saveNow();closeSedationModal();updateTb(i,p);}
+function openModeModal(i,ri){st.modePatientIdx=i;st.modeRecordIdx=ri;var p=st.patients[i];var vent=VENTILATORS.find(function(v){return v.id===p.ventilatorId;});var modes=vent?(MODES_BY_TYPE[vent.type]||['SIMV','BIPAP','CPAP']):['SIMV','BIPAP','CPAP'];var curMode=p.records[ri]?p.records[ri].mode:'';var cont=document.getElementById('modeModalButtons');cont.innerHTML='';modes.forEach(function(mode){var btn=document.createElement('button');btn.className='btn btn-secondary';btn.style.cssText='padding:12px;font-size:14px';btn.textContent=mode;if(mode===curMode){btn.style.background='#3b82f6';btn.style.color='#fff';}btn.onclick=(function(m){return function(){selectMode(m);};})(mode);cont.appendChild(btn);});document.getElementById('modeModal').style.display='block';}
+function closeModeModal(){document.getElementById('modeModal').style.display='none';st.modePatientIdx=null;st.modeRecordIdx=null;}
+function selectMode(mode){var i=st.modePatientIdx;var ri=st.modeRecordIdx;if(i===null||ri===null)return;st.patients[i].records[ri].mode=mode;saveNow();var p=st.patients[i];if(p.ventType==='nppv')updateNPPVTb(i,p);else updateTb(i,p);closeModeModal();}
+
+function renderSimpleCharts(i,p){var recs=p.records.filter(function(r){return r.date;});if(recs.length<2)return;var labels=recs.map(function(r,idx){return'D'+(getDayNumber(p.startDate,r.date)||idx+1);});drawMini(document.getElementById('cp-'+i),labels,recs.map(function(r){return parseFloat(r.pip)||null;}),'#ef4444');drawMini(document.getElementById('cv-'+i),labels,recs.map(function(r){return parseFloat(r.vte)||null;}),'#3b82f6');drawMini(document.getElementById('cr-'+i),labels,recs.map(function(r){return parseFloat(r.rrM)||null;}),'#10b981');drawMini(document.getElementById('cs-'+i),labels,recs.map(function(r){return parseFloat(r.spo2)||null;}),'#8b5cf6');}
+function drawMini(canvas,labels,data,color){if(!canvas)return;var ctx=canvas.getContext('2d');var w=canvas.width;var h=canvas.height;ctx.clearRect(0,0,w,h);var vd=data.filter(function(d){return d!==null&&!isNaN(d);});if(vd.length<2)return;var min=Math.min.apply(null,vd)*0.95;var max=Math.max.apply(null,vd)*1.05;var rng=max-min||1;var pl=25,pr=10,pt=5,pb=20;var cw=w-pl-pr;var ch=h-pt-pb;ctx.strokeStyle='#e5e7eb';ctx.lineWidth=1;for(var g=0;g<=4;g++){var gy=pt+(g/4)*ch;ctx.beginPath();ctx.moveTo(pl,gy);ctx.lineTo(w-pr,gy);ctx.stroke();ctx.fillStyle='#9ca3af';ctx.font='9px sans-serif';ctx.textAlign='right';ctx.fillText(Math.round(max-(g/4)*rng),pl-2,gy+3);}var step=cw/(labels.length-1||1);ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();var first=true;data.forEach(function(d,idx){if(d===null||isNaN(d))return;var x=pl+idx*step;var y=pt+ch*(1-(d-min)/rng);if(first){ctx.moveTo(x,y);first=false;}else ctx.lineTo(x,y);});ctx.stroke();ctx.fillStyle=color;data.forEach(function(d,idx){if(d===null||isNaN(d))return;var x=pl+idx*step;var y=pt+ch*(1-(d-min)/rng);ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fill();});ctx.fillStyle='#6b7280';ctx.font='9px sans-serif';ctx.textAlign='center';var st2=Math.ceil(labels.length/5);labels.forEach(function(l,idx){if(idx%st2===0)ctx.fillText(l,pl+idx*step,h-5);});}
+function renderFull(i,p,cnt){if(!p.ventType)p.ventType='ippv';if(p.ventType==='nppv'){renderNPPVFull(i,p,cnt);return;}var dc=Math.min(p.records.length,3);var dr=p.records.slice(-dc);var ec=3-dc;var ward=getWard(p.room);var isNew=p.records.length===1&&!p.records[0].date&&!p.records[0].mode;var ventOpts='<option value="">選択してください</option>';VENTILATORS.filter(function(v){return v.ventType==='ippv';}).forEach(function(v){ventOpts+='<option value="'+v.id+'"'+(p.ventilatorId===v.id?' selected':'')+'>'+(v.id.indexOf('IAVR-')===0?'IAVR':v.id)+' : '+v.name+'</option>';});var h='<div class="container"><h1>IPPV 人工呼吸器チェック表</h1>';h+='<div style="background:#f9fafb;padding:8px 12px;border-radius:8px;margin-bottom:16px;border:1px solid #e5e7eb;position:sticky;top:50px;z-index:90">';h+='<div style="display:flex;gap:12px;align-items:center;padding-bottom:6px;border-bottom:1px solid #e5e7eb;margin-bottom:6px">';h+='<span style="font-size:20px;font-weight:700;color:#1e40af;min-width:60px">'+(ward||'未設定')+'</span>';h+='<label style="font-size:12px;color:#6b7280;white-space:nowrap">病室:</label>';h+='<input value="'+(p.room||'')+'" onchange="updHeader('+i+',\'room\',this.value)" style="width:72px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">';h+='<button class="btn btn-success" onclick="openWeanModal('+i+')" style="margin-left:auto;padding:8px 16px;font-size:13px">離脱・削除</button>';h+='</div>';h+='<div style="display:flex;gap:12px;align-items:center;padding-bottom:6px;border-bottom:1px solid #e5e7eb;margin-bottom:6px">';h+='<label style="font-size:12px;color:#6b7280;white-space:nowrap">ID:</label>';h+='<input value="'+(p.id||'')+'" onchange="updHeader('+i+',\'id\',this.value)" style="flex:1;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">';h+='<label style="font-size:12px;color:#6b7280;white-space:nowrap">氏名:</label>';h+='<input value="'+(p.name||'')+'" onchange="updHeader('+i+',\'name\',this.value)" style="flex:2;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">';h+='</div>';h+='<div style="display:flex;gap:12px;align-items:center">';h+='<label style="font-size:12px;color:#6b7280;white-space:nowrap">導入日:</label>';h+='<input type="date" value="'+(p.startDate||'')+'" onchange="updHeader('+i+',\'startDate\',this.value)" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">';h+='<label style="font-size:12px;color:#6b7280;white-space:nowrap">導入疾患:</label>';h+='<input value="'+(p.disease||'')+'" onchange="updHeader('+i+',\'disease\',this.value)" style="flex:2;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">';h+='<label style="font-size:12px;color:#6b7280;white-space:nowrap">呼吸器:</label>';h+='<select onchange="updHeader('+i+',\'ventilatorId\',this.value)" style="flex:1;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">'+ventOpts+'</select>';h+='</div>';h+='</div>';if(isNew){h+='<div style="margin-top:20px;text-align:center"><button class="btn btn-primary" onclick="copyPrev('+i+')" style="padding:12px 28px">新規記録を開始</button></div>';h+='</div>';cnt.innerHTML=h;return;}h+='<div style="display:flex;gap:16px">';if(p.records.length>3){h+='<div style="width:220px;flex-shrink:0;display:flex;flex-direction:column;gap:8px">';['cp','cv','cr','cs'].forEach(function(id,idx){var label=['PIP','Vte','RR','SpO2'][idx];h+='<div style="padding:8px;background:#f9fafb;border-radius:6px"><div style="font-size:11px;font-weight:600;margin-bottom:4px">'+label+'</div><canvas id="'+id+'-'+i+'" width="200" height="80"></canvas></div>';});h+='</div>';}h+='<div style="flex:1;overflow-x:auto">';h+='<table><colgroup><col style="width:160px"><col style="width:calc((100%-160px)/3)"><col style="width:calc((100%-160px)/3)"><col style="width:calc((100%-160px)/3)"></colgroup>';h+='<thead><tr><th>項目</th><th colspan="3">記録</th></tr>';h+='<tr class="day-header" id="hdr-'+i+'"><th>回診日</th>';for(var e=0;e<ec;e++)h+='<th class="empty-col"></th>';dr.forEach(function(r,j){var ri=p.records.length-dc+j;var l=j===dr.length-1;var dn=r.date?getDayNumber(p.startDate,r.date):(ri+1);h+=l?'<th><div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div>Day '+dn+'<br><span>'+(r.date||'未入力')+'</span></div><button class="btn btn-primary" onclick="copyPrev('+i+')" style="padding:5px 10px;font-size:12px">コピー/新規</button></div></th>':'<th>Day '+dn+'<br>'+(r.date||'未入力')+'</th>';});h+='</tr></thead><tbody id="tb-'+i+'"></tbody></table></div></div></div>';cnt.innerHTML=h;updateTb(i,p);if(p.records.length>3)setTimeout(function(){renderSimpleCharts(i,p);},50);}
+
+function renderNPPVFull(i,p,cnt){var dc=Math.min(p.records.length,3);var dr=p.records.slice(-dc);var ec=3-dc;var ward=getWard(p.room);var isNew=p.records.length===1&&!p.records[0].date&&!p.records[0].mode;var ventOpts='<option value="">選択してください</option>';VENTILATORS.filter(function(v){return v.ventType==='nppv';}).forEach(function(v){ventOpts+='<option value="'+v.id+'"'+(p.ventilatorId===v.id?' selected':'')+'>'+(v.id.indexOf('IAVR-')===0?'IAVR':v.id)+' : '+v.name+'</option>';});var h='<div class="container"><h1>NPPV 人工呼吸器チェック表</h1>';h+='<div style="background:#f0fdf4;padding:8px 12px;border-radius:8px;margin-bottom:16px;border:1px solid #a7f3d0;position:sticky;top:50px;z-index:90">';h+='<div style="display:flex;gap:12px;align-items:center;padding-bottom:6px;border-bottom:1px solid #a7f3d0;margin-bottom:6px">';h+='<span style="font-size:20px;font-weight:700;color:#10b981;min-width:60px">'+(ward||'未設定')+'</span>';h+='<label style="font-size:12px;color:#6b7280;white-space:nowrap">病室:</label>';h+='<input value="'+(p.room||'')+'" onchange="updHeader('+i+',\'room\',this.value)" style="width:72px;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">';h+='<button class="btn btn-success" onclick="openWeanModal('+i+')" style="margin-left:auto;padding:8px 16px;font-size:13px">離脱・削除</button>';h+='</div>';h+='<div style="display:flex;gap:12px;align-items:center;padding-bottom:6px;border-bottom:1px solid #a7f3d0;margin-bottom:6px">';h+='<label style="font-size:12px;color:#6b7280;white-space:nowrap">ID:</label>';h+='<input value="'+(p.id||'')+'" onchange="updHeader('+i+',\'id\',this.value)" style="flex:1;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">';h+='<label style="font-size:12px;color:#6b7280;white-space:nowrap">氏名:</label>';h+='<input value="'+(p.name||'')+'" onchange="updHeader('+i+',\'name\',this.value)" style="flex:2;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">';h+='</div>';h+='<div style="display:flex;gap:12px;align-items:center">';h+='<label style="font-size:12px;color:#6b7280;white-space:nowrap">導入日:</label>';h+='<input type="date" value="'+(p.startDate||'')+'" onchange="updHeader('+i+',\'startDate\',this.value)" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">';h+='<label style="font-size:12px;color:#6b7280;white-space:nowrap">導入疾患:</label>';h+='<input value="'+(p.disease||'')+'" onchange="updHeader('+i+',\'disease\',this.value)" style="flex:2;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">';h+='<label style="font-size:12px;color:#6b7280;white-space:nowrap">呼吸器:</label>';h+='<select onchange="updHeader('+i+',\'ventilatorId\',this.value)" style="flex:1;padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px">'+ventOpts+'</select>';h+='</div>';h+='</div>';if(isNew){h+='<div style="margin-top:20px;text-align:center"><button class="btn btn-primary" onclick="copyPrev('+i+')" style="padding:12px 28px">新規記録を開始</button></div>';h+='</div>';cnt.innerHTML=h;return;}h+='<div style="overflow-x:auto"><table><colgroup><col style="width:160px"><col><col><col></colgroup>';h+='<thead><tr><th>項目</th><th colspan="3">記録</th></tr>';h+='<tr class="day-header" id="hdr-'+i+'"><th>回診日</th>';for(var e=0;e<ec;e++)h+='<th class="empty-col"></th>';dr.forEach(function(r,j){var ri=p.records.length-dc+j;var l=j===dr.length-1;var dn=r.date?getDayNumber(p.startDate,r.date):(ri+1);h+=l?'<th><div style="display:flex;flex-direction:column;align-items:center;gap:6px"><div>Day '+dn+'<br>'+(r.date||'未入力')+'</div><button class="btn btn-primary" onclick="copyPrev('+i+')" style="padding:5px 10px;font-size:12px">コピー/新規</button></div></th>':'<th>Day '+dn+'<br>'+(r.date||'未入力')+'</th>';});h+='</tr></thead><tbody id="tb-nppv-'+i+'"></tbody></table></div></div>';cnt.innerHTML=h;updateNPPVTb(i,p);}
+
+function updateNPPVTb(i,p){var dc=Math.min(p.records.length,3);var dr=p.records.slice(-dc);var ec=3-dc;var tb=document.getElementById('tb-nppv-'+i);if(!tb)return;var h=[];h.push('<tr><td class="item-label">日付</td>');for(var e=0;e<ec;e++)h.push('<td class="empty-col"></td>');dr.forEach(function(r,j){var ri=p.records.length-dc+j;h.push('<td><input type="date" value="'+(r.date||'')+'" onchange="updDate('+i+','+ri+',this.value)"></td>');});h.push('</tr><tr><td class="item-label">時間</td>');for(var e=0;e<ec;e++)h.push('<td class="empty-col"></td>');dr.forEach(function(r,j){var ri=p.records.length-dc+j;h.push('<td><input value="'+(r.time||'')+'" placeholder="HH:MM" onchange="upd('+i+','+ri+',\'time\',this.value)"></td>');});h.push('</tr><tr><td class="category-header" colspan="4">設定値</td></tr>');[['mode','モード'],['fio2','FiO2 (%)']].forEach(function(kl){h.push('<tr><td class="item-label">'+kl[1]+'</td>');for(var e=0;e<ec;e++)h.push('<td class="empty-col"></td>');dr.forEach(function(r,j){var ri=p.records.length-dc+j;var isL=j===dr.length-1;var vent=VENTILATORS.find(function(v){return v.id===p.ventilatorId;});var m=r.mode||'';if(kl[0]==='mode'){if(!p.ventilatorId)h.push('<td style="background:#fef2f2;color:#991b1b">呼吸器を選択</td>');else if(isL)h.push('<td><button onclick="openModeModal('+i+','+ri+')" style="width:100%;padding:8px;background:#fff;border:1px solid #d1d5db;border-radius:4px;cursor:pointer">'+(r.mode||'選択')+'</button></td>');else h.push('<td>'+(r.mode||'-')+'</td>');}else{var disabled=m==='一時離脱中'?' disabled':'';h.push('<td><input type="text" inputmode="numeric" value="'+(r[kl[0]]||'')+'" onchange="upd('+i+','+ri+',\''+kl[0]+'\',this.value)"'+disabled+'></td>');}});h.push('</tr>');});h.push('</tr><tr><td class="category-header" colspan="4">確認事項</td></tr>');h.push('<tr><td class="item-label">精製水残量</td>');for(var e=0;e<ec;e++)h.push('<td class="empty-col"></td>');dr.forEach(function(r,j){var ri=p.records.length-dc+j;h.push('<td><input type="checkbox"'+(r.waterOK?' checked':'')+' onchange="upd('+i+','+ri+',\'waterOK\',this.checked)"></td>');});h.push('</tr><tr><td class="item-label">物品</td>');for(var e=0;e<ec;e++)h.push('<td class="empty-col"></td>');dr.forEach(function(r,j){var ri=p.records.length-dc+j;h.push('<td><label style="display:flex;align-items:center;gap:4px;justify-content:center;font-size:12px"><input type="checkbox"'+(r.supplyOK?' checked':'')+' onchange="handleSupplyOK('+i+','+ri+',this.checked)" style="width:16px;height:16px">OK</label><label style="display:flex;align-items:center;gap:4px;justify-content:center;font-size:12px;margin-top:4px"><input type="checkbox" class="ng-check"'+(r.supplyNG?' checked':'')+' onchange="handleSupplyNG('+i+','+ri+',this.checked)" style="width:16px;height:16px">NG</label></td>');});h.push('</tr><tr><td class="item-label">備考</td>');for(var e=0;e<ec;e++)h.push('<td class="empty-col"></td>');dr.forEach(function(r,j){var ri=p.records.length-dc+j;h.push('<td><textarea placeholder="備考" onchange="upd('+i+','+ri+',\'notes\',this.value)">'+(r.notes||'')+'</textarea></td>');});h.push('</tr><tr><td class="item-label">確認者</td>');for(var e=0;e<ec;e++)h.push('<td class="empty-col"></td>');dr.forEach(function(r,j){var ri=p.records.length-dc+j;h.push('<td><input value="'+(r.checker||'')+'" onchange="upd('+i+','+ri+',\'checker\',this.value)"></td>');});h.push('</tr>');tb.innerHTML=h.join('');}
+function updateTb(i,p){var dc=Math.min(p.records.length,3);var dr=p.records.slice(-dc);var ec=3-dc;var tb=document.getElementById('tb-'+i);if(!tb)return;var h=[];h.push('<tr><td class="item-label">日付</td>');for(var e=0;e<ec;e++)h.push('<td class="empty-col"></td>');dr.forEach(function(r,j){var ri=p.records.length-dc+j;var iL=j===dr.length-1;h.push('<td><input type="date" value="'+(r.date||'')+'" onchange="updDate('+i+','+ri+',this.value)"'+(iL?'':' disabled style="background:#f3f4f6;color:#6b7280"')+'></td>');});h.push('</tr>');h.push('<tr><td class="item-label">時間</td>');for(var e=0;e<ec;e++)h.push('<td class="empty-col"></td>');dr.forEach(function(r,j){var ri=p.records.length-dc+j;var iL=j===dr.length-1;h.push('<td><input value="'+(r.time||'')+'" placeholder="HH:MM" onchange="upd('+i+','+ri+',\'time\',this.value)"'+(iL?'':' disabled style="background:#f3f4f6;color:#6b7280"')+'></td>');});h.push('</tr><tr><td class="category-header" colspan="4">設定値</td></tr>');var settings=[['モード','mode','text'],['TV (mL) / Pi (mbar)','tv','number'],['RR (回/分)','rr','number'],['FiO2 (%)','fio2','number'],['Ti (秒)','ti','decimal'],['PS (cmH2O)','ps','number'],['PEEP (cmH2O)','peep','number']];settings.forEach(function(sl){var l=sl[0];var f=sl[1];var t=sl[2];h.push('<tr><td class="item-label">'+l+'</td>');for(var e=0;e<ec;e++)h.push('<td class="empty-col"></td>');dr.forEach(function(r,j){var ri=p.records.length-dc+j;var m=r.mode||'';var iL=j===dr.length-1;var dis=(f==='rr'&&(m==='PSV'||m==='CPAP'||m==='CPAP/PS'||m==='SPN-CPAP/PS'))||(f==='ti'&&(m==='PSV'||m==='CPAP'||m==='PRVC'||m==='CPAP/PS'||m==='SPN-CPAP/PS'))||(f==='tv'&&(m==='CPAP'||m==='CPAP/PS'||m==='SPN-CPAP/PS'))||(f==='ps'&&(m==='A/C'||m==='PRVC'||m==='APRV'||m==='VC-AC'||m==='PC-AC'||m==='IPPV'||m.indexOf('APRV')>=0));if(m==='一時離脱中'&&f!=='mode')dis=true;var ro=iL?'':' disabled style="background:#f3f4f6;color:#6b7280"';var inputType='text';if(f==='mode'){if(iL){var hv=p.ventilatorId&&p.ventilatorId!=='';h.push(hv?'<td><button onclick="openModeModal('+i+','+ri+')" style="width:100%;padding:8px;background:#fff;border:1px solid #d1d5db;border-radius:4px;cursor:pointer">'+(r.mode||'選択')+'</button></td>':'<td style="background:#fef2f2;color:#991b1b">呼吸器を選択</td>');}else{h.push('<td style="background:#f3f4f6;color:#6b7280">'+(r.mode||'-')+'</td>');}}else{h.push('<td><input type="text" inputmode="numeric" value="'+(r[f]||'')+'" onchange="upd('+i+','+ri+',\''+f+'\',this.value)"'+(dis?' disabled':'')+ro+'></td>');}});h.push('</tr>');});h.push('<tr><td class="category-header" colspan="4">測定値</td></tr>');[['PIP (cmH2O)','pip'],['Vte (mL)','vte'],['RR (回/分)','rrM'],['SpO2 (%)','spo2']].forEach(function(kl){h.push('<tr><td class="item-label">'+kl[0]+'</td>');for(var e=0;e<ec;e++)h.push('<td class="empty-col"></td>');dr.forEach(function(r,j){var ri=p.records.length-dc+j;var iL=j===dr.length-1;var ro=iL?'':' disabled style="background:#f3f4f6;color:#6b7280"';h.push('<td><input type="text" inputmode="numeric" value="'+(r[kl[1]]||'')+'" onchange="upd('+i+','+ri+',\''+kl[1]+'\',this.value)"'+ro+'></td>');});h.push('</tr>');});h.push('<tr><td class="item-label">プラトー圧</td>');for(var e=0;e<ec;e++)h.push('<td class="empty-col"></td>');dr.forEach(function(r){var v='';var m=r.mode||'';if(m.indexOf('PC-')===0||m==='PC-BIPAP'){v=r.ps||'';}else if(r.pip){v=(parseFloat(r.pip)*0.85).toFixed(1);}h.push('<td style="background:#f0f9ff;color:#0369a1;font-weight:600">'+(v||'-')+'</td>');});h.push('</tr>');h.push('<tr><td class="item-label">肺コンプライアンス</td>');for(var e=0;e<ec;e++)h.push('<td class="empty-col"></td>');dr.forEach(function(r){var v='';if(r.vte&&r.pip&&r.peep){var pl=parseFloat(r.pip)*0.85,vt=parseFloat(r.vte),pe=parseFloat(r.peep);if(pl>pe)v=(vt/(pl-pe)).toFixed(1);}h.push('<td style="background:#f0f9ff;color:#0369a1;font-weight:600">'+(v||'-')+'</td>');});h.push('</tr>');h.push('<tr><td class="category-header" colspan="4">鎮静・鎮痛<button onclick="showSedMenu('+i+')" style="margin-left:10px;padding:4px 10px;background:#3b82f6;color:white;border:none;border-radius:4px;cursor:pointer">+</button></td></tr>');var ld=dr[dr.length-1];var ms=ld.sedations?ld.sedations.length:0;for(var si=0;si<ms;si++){h.push('<tr><td class="item-label" style="background:#dcfce7">鎮静薬'+(si+1)+'<button onclick="rmSed('+i+','+(p.records.length-1)+','+si+')" style="margin-left:6px;padding:2px 6px;background:#ef4444;color:white;border:none;border-radius:3px;cursor:pointer;font-size:11px">&times;</button></td>');for(var e=0;e<ec;e++)h.push('<td class="empty-col"></td>');dr.forEach(function(r,j){var ri=p.records.length-dc+j;var iL=j===dr.length-1;if(r.sedations&&r.sedations[si]){var s=r.sedations[si];if(s.discontinued)h.push('<td style="background:#e5e7eb;color:#6b7280;font-weight:600">中止</td>');else if(iL)h.push('<td style="background:#dcfce7"><select onchange="updSed('+i+','+ri+','+si+',\'drug\',this.value)" style="width:100%;background:#dcfce7"><option value="">選択</option><option'+(s.drug==='デクスメデトミジン'?' selected':'')+'>デクスメデトミジン</option><option'+(s.drug==='ミダゾラム'?' selected':'')+'>ミダゾラム</option><option'+(s.drug==='プロポフォール'?' selected':'')+'>プロポフォール</option></select></td>');else h.push('<td style="background:#dcfce7;color:#6b7280">'+(s.drug||'-')+'</td>');}else h.push('<td style="background:#dcfce7">-</td>');});h.push('</tr>');h.push('<tr><td class="item-label" style="background:#dcfce7">鎮静薬'+(si+1)+'投与量</td>');for(var e=0;e<ec;e++)h.push('<td class="empty-col"></td>');dr.forEach(function(r,j){var ri=p.records.length-dc+j;var iL=j===dr.length-1;if(r.sedations&&r.sedations[si]){var s=r.sedations[si];if(s.discontinued)h.push('<td style="background:#e5e7eb;color:#6b7280">-</td>');else if(iL)h.push('<td style="background:#dcfce7"><input value="'+(s.dose||'')+'" placeholder="例: 0.5μg/kg/hr" onchange="updSed('+i+','+ri+','+si+',\'dose\',this.value)" style="background:#dcfce7"></td>');else h.push('<td style="background:#dcfce7;color:#6b7280">'+(s.dose||'-')+'</td>');}else h.push('<td style="background:#dcfce7">-</td>');});h.push('</tr>');}var ma=ld.analgesics?ld.analgesics.length:0;for(var ai=0;ai<ma;ai++){h.push('<tr><td class="item-label" style="background:#fce7f3">鎮痛薬'+(ai+1)+'<button onclick="rmAna('+i+','+(p.records.length-1)+','+ai+')" style="margin-left:6px;padding:2px 6px;background:#ef4444;color:white;border:none;border-radius:3px;cursor:pointer;font-size:11px">&times;</button></td>');for(var e=0;e<ec;e++)h.push('<td class="empty-col"></td>');dr.forEach(function(r,j){var ri=p.records.length-dc+j;var iL=j===dr.length-1;if(r.analgesics&&r.analgesics[ai]){var a=r.analgesics[ai];if(a.discontinued)h.push('<td style="background:#e5e7eb;color:#6b7280;font-weight:600">中止</td>');else if(iL)h.push('<td style="background:#fce7f3"><select onchange="updAna('+i+','+ri+','+ai+',\'drug\',this.value)" style="width:100%;background:#fce7f3"><option value="">選択</option><option'+(a.drug==='フェンタニル'?' selected':'')+'>フェンタニル</option><option'+(a.drug==='レミフェンタニル'?' selected':'')+'>レミフェンタニル</option><option'+(a.drug==='モルヒネ'?' selected':'')+'>モルヒネ</option></select></td>');else h.push('<td style="background:#fce7f3;color:#6b7280">'+(a.drug||'-')+'</td>');}else h.push('<td style="background:#fce7f3">-</td>');});h.push('</tr>');h.push('<tr><td class="item-label" style="background:#fce7f3">鎮痛薬'+(ai+1)+'投与量</td>');for(var e=0;e<ec;e++)h.push('<td class="empty-col"></td>');dr.forEach(function(r,j){var ri=p.records.length-dc+j;var iL=j===dr.length-1;if(r.analgesics&&r.analgesics[ai]){var a=r.analgesics[ai];if(a.discontinued)h.push('<td style="background:#e5e7eb;color:#6b7280">-</td>');else if(iL)h.push('<td style="background:#fce7f3"><input value="'+(a.dose||'')+'" placeholder="例: 1μg/kg/hr" onchange="updAna('+i+','+ri+','+ai+',\'dose\',this.value)" style="background:#fce7f3"></td>');else h.push('<td style="background:#fce7f3;color:#6b7280">'+(a.dose||'-')+'</td>');}else h.push('<td style="background:#fce7f3">-</td>');});h.push('</tr>');}h.push('<tr><td class="category-header" colspan="4">確認事項</td></tr>');h.push('<tr><td class="item-label">カフ圧</td>');for(var e=0;e<ec;e++)h.push('<td class="empty-col"></td>');dr.forEach(function(r,j){var ri=p.records.length-dc+j;var iL=j===dr.length-1;h.push('<td><input type="checkbox"'+(r.cuff?' checked':'')+' onchange="upd('+i+','+ri+',\'cuff\',this.checked)"'+(iL?'':' disabled style="opacity:0.5"')+'></td>');});h.push('</tr>');h.push('<tr><td class="item-label">物品</td>');for(var e=0;e<ec;e++)h.push('<td class="empty-col"></td>');dr.forEach(function(r,j){var ri=p.records.length-dc+j;var iL=j===dr.length-1;if(iL)h.push('<td><label style="display:flex;align-items:center;gap:3px;justify-content:center;font-size:12px"><input type="checkbox"'+(r.supplyOK?' checked':'')+' onchange="handleSupplyOK('+i+','+ri+',this.checked)" style="width:15px;height:15px">OK</label><label style="display:flex;align-items:center;gap:3px;justify-content:center;font-size:12px;margin-top:2px"><input type="checkbox" class="ng-check"'+(r.supplyNG?' checked':'')+' onchange="handleSupplyNG('+i+','+ri+',this.checked)" style="width:15px;height:15px">NG</label></td>');else h.push('<td style="background:#f3f4f6;color:#6b7280">'+(r.supplyOK?'OK':r.supplyNG?'NG':'-')+'</td>');});h.push('</tr>');h.push('<tr><td class="item-label">備考</td>');for(var e=0;e<ec;e++)h.push('<td class="empty-col"></td>');dr.forEach(function(r,j){var ri=p.records.length-dc+j;var iL=j===dr.length-1;var ro=iL?'':' disabled style="background:#f3f4f6;color:#6b7280"';h.push('<td><textarea placeholder="備考" onchange="upd('+i+','+ri+',\'notes\',this.value)"'+ro+'>'+(r.notes||'')+'</textarea></td>');});h.push('</tr>');h.push('<tr><td class="item-label">確認者</td>');for(var e=0;e<ec;e++)h.push('<td class="empty-col"></td>');dr.forEach(function(r,j){var ri=p.records.length-dc+j;var iL=j===dr.length-1;var ro=iL?'':' disabled style="background:#f3f4f6;color:#6b7280"';h.push('<td><input value="'+(r.checker||'')+'" onchange="upd('+i+','+ri+',\'checker\',this.value)"'+ro+'></td>');});h.push('</tr>');tb.innerHTML=h.join('');}
+
+function updateSyncStatus(status){var st2=document.getElementById('gdrive-status-text');var pr=document.getElementById('gdrive-sync-progress');if(!st2||!pr)return;if(status==='synced'){st2.style.display='inline';st2.style.color='#059669';st2.textContent='✓ 同期済 '+(lastSyncTime||'');pr.style.display='none';}else if(status==='syncing'){st2.style.display='none';pr.style.display='inline';}else if(status==='error'){st2.style.display='inline';st2.style.color='#ef4444';st2.textContent='⚠️ 同期エラー';pr.style.display='none';}else if(status==='offline'){st2.style.display='inline';st2.style.color='#6b7280';st2.textContent='📴 オフライン';pr.style.display='none';}else{st2.style.display='none';pr.style.display='none';}}
+function initGoogleDrive(){var token=localStorage.getItem('gdrive:token');var fileId=localStorage.getItem('gdrive:fileId');if(token){gdriveToken=token;gdriveFileId=fileId;document.getElementById('gdrive-btn').textContent='☁️ 同期有効';document.getElementById('gdrive-btn').style.background='#34a853';startAutoSync();setTimeout(function(){syncFromGoogleDrive();},1000);}}
+function toggleGoogleDrive(){if(gdriveToken){if(confirm('Google Drive連携を解除しますか？')){gdriveToken=null;gdriveFileId=null;localStorage.removeItem('gdrive:token');localStorage.removeItem('gdrive:fileId');stopAutoSync();document.getElementById('gdrive-btn').textContent='☁️ Google Drive連携';document.getElementById('gdrive-btn').style.background='#4285f4';updateSyncStatus('none');alert('Google Drive連携を解除しました');}}else{authenticateGoogleDrive();}}
+function authenticateGoogleDrive(){var clientId='YOUR_CLIENT_ID.apps.googleusercontent.com';var redirectUri=window.location.origin+window.location.pathname;if(clientId==='YOUR_CLIENT_ID.apps.googleusercontent.com'){alert('Google Drive連携の初期設定が必要です。\n\nOAuth 2.0クライアントIDを取得してください。\n\n現在のリダイレクトURI:\n'+redirectUri);}else{var authUrl='https://accounts.google.com/o/oauth2/v2/auth?client_id='+clientId+'&redirect_uri='+encodeURIComponent(redirectUri)+'&response_type=token&scope='+encodeURIComponent('https://www.googleapis.com/auth/drive.file');window.location.href=authUrl;}}
+function handleAuthCallback(){var hash=window.location.hash;if(hash.indexOf('access_token')>=0){var params=new URLSearchParams(hash.substring(1));var token=params.get('access_token');if(token){gdriveToken=token;localStorage.setItem('gdrive:token',token);document.getElementById('gdrive-btn').textContent='☁️ 同期有効';document.getElementById('gdrive-btn').style.background='#34a853';window.location.hash='';startAutoSync();syncToGoogleDrive();alert('✅ Google Drive連携が完了しました！');}}}
+function startAutoSync(){if(syncInterval)return;syncInterval=setInterval(function(){if(navigator.onLine&&gdriveToken)syncToGoogleDrive();},5*60*1000);window.addEventListener('online',function(){if(gdriveToken){updateSyncStatus('syncing');syncFromGoogleDrive();}});window.addEventListener('offline',function(){updateSyncStatus('offline');});}
+function stopAutoSync(){if(syncInterval){clearInterval(syncInterval);syncInterval=null;}}
+function syncToGoogleDrive(){if(!gdriveToken){updateSyncStatus('none');return;}if(!navigator.onLine){updateSyncStatus('offline');return;}updateSyncStatus('syncing');var data={patients:st.patients,checker:st.checker,lastSync:new Date().toISOString()};var content=JSON.stringify(data,null,2);var metadata={name:GDRIVE_FILE_NAME,mimeType:'application/json'};var form=new FormData();form.append('metadata',new Blob([JSON.stringify(metadata)],{type:'application/json'}));form.append('file',new Blob([content],{type:'application/json'}));var url=gdriveFileId?'https://www.googleapis.com/upload/drive/v3/files/'+gdriveFileId+'?uploadType=multipart':'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';var method=gdriveFileId?'PATCH':'POST';fetch(url,{method:method,headers:{'Authorization':'Bearer '+gdriveToken},body:form}).then(function(r){return r.json();}).then(function(result){if(result.id&&!gdriveFileId){gdriveFileId=result.id;localStorage.setItem('gdrive:fileId',result.id);}var now=new Date();lastSyncTime=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');updateSyncStatus('synced');}).catch(function(e){console.error('同期エラー:',e);updateSyncStatus('error');});}
+function mergePatients(lp,rp){var merged=[];var ids=new Set();lp.concat(rp).forEach(function(p){if(!p.id||ids.has(p.id))return;ids.add(p.id);var l=lp.find(function(x){return x.id===p.id;});var r=rp.find(function(x){return x.id===p.id;});if(l&&r){var ld=l.records&&l.records.length>0?new Date(l.records[l.records.length-1].date||0):new Date(0);var rd=r.records&&r.records.length>0?new Date(r.records[r.records.length-1].date||0):new Date(0);merged.push(ld>=rd?l:r);}else{merged.push(l||r);}});return merged;}
+function syncFromGoogleDrive(){if(!gdriveToken||!gdriveFileId)return;if(!navigator.onLine){updateSyncStatus('offline');return;}updateSyncStatus('syncing');fetch('https://www.googleapis.com/drive/v3/files/'+gdriveFileId+'?alt=media',{headers:{'Authorization':'Bearer '+gdriveToken}}).then(function(r){return r.json();}).then(function(data){if(data.patients){var cd=JSON.stringify(st.patients);var nd=JSON.stringify(data.patients);if(cd!==nd){var lc=st.patients.length;var rc=data.patients.length;var mp=mergePatients(st.patients,data.patients);if(lc===0){if(confirm('☁️ Google Driveからデータを取得\n\n患者数: '+rc+'名\n\nダウンロードしますか？')){st.patients=data.patients;st.checker=data.checker||'';saveNow();location.reload();}else updateSyncStatus('synced');}else if(rc>0){if(confirm('☁️ データ統合\n\n統合後: '+mp.length+'名\n\n[OK] 統合する')){st.patients=mp;st.checker=data.checker||st.checker;saveNow();syncToGoogleDrive();location.reload();}else updateSyncStatus('synced');}else updateSyncStatus('synced');}else{var now=new Date();lastSyncTime=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');updateSyncStatus('synced');}}}).catch(function(e){console.error('同期エラー:',e);updateSyncStatus('error');});}
+
+window.addEventListener('load',function(){handleAuthCallback();init();initGoogleDrive();});
+</script>
+</body>
+</html>
