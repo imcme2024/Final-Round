@@ -233,7 +233,7 @@ function formatFiO2(v){if(!v||v==='')return'';var n=parseFloat(v);if(isNaN(n))re
 function formatDec1(v){if(!v||v==='')return'';var n=parseFloat(v);if(isNaN(n))return'';return n.toFixed(1);}
 
 var scheduleSave=debounce(function(){try{localStorage.setItem('v:p',JSON.stringify(st.patients));localStorage.setItem('v:c',st.checker);checkAndBackup();}catch(e){console.error('保存エラー:',e);}},500);
-function saveNow(){try{localStorage.setItem('v:p',JSON.stringify(st.patients));localStorage.setItem('v:c',st.checker);checkAndBackup();if(gdriveToken)syncToGoogleDrive();}catch(e){console.error('保存エラー:',e);}}
+function saveNow(){try{localStorage.setItem('v:p',JSON.stringify(st.patients));localStorage.setItem('v:c',st.checker);checkAndBackup();if(gdriveToken&&st.patients.length>0)syncToGoogleDrive();}catch(e){console.error('保存エラー:',e);}}
 function checkAndBackup(){try{var today=getJSTDate();if(localStorage.getItem('v:lastBackup')!==today){localStorage.setItem('v:backup:'+today,JSON.stringify({patients:st.patients,checker:st.checker,date:today}));localStorage.setItem('v:lastBackup',today);cleanOldBackups();updateBackupStatus();}}catch(e){}}
 function cleanOldBackups(){var keys=[];for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.startsWith('v:backup:'))keys.push(k);}keys.sort().reverse();for(var j=30;j<keys.length;j++)localStorage.removeItem(keys[j]);}
 function updateBackupStatus(){var lb=localStorage.getItem('v:lastBackup');var el=document.getElementById('backupStatus');if(el&&lb)el.textContent='最終バックアップ: '+lb;}
@@ -315,8 +315,15 @@ function initGoogleDrive(){
     gdriveFileId=fileId;
     document.getElementById('gdrive-btn').textContent='☁️ 同期有効';
     document.getElementById('gdrive-btn').style.background='#34a853';
-    startAutoSync();
-    setTimeout(function(){syncFromGoogleDrive();},1000);
+    // ローカルにデータがない場合のみDriveからダウンロード
+    if(st.patients.length===0){
+      setTimeout(function(){syncFromGoogleDrive();},1000);
+    }else{
+      // ローカルにデータあり→自動同期のみ開始（上書きしない）
+      startAutoSync();
+      var now=new Date();lastSyncTime=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+      updateSyncStatus('synced');
+    }
   }
 }
 
@@ -419,9 +426,12 @@ function syncFromGoogleDrive(){
         var lc=st.patients.length;
         var rc=data.patients.length;
         if(lc===0&&rc>0){
-          // ローカルが空→Driveから取得
+          // ローカルが空→Driveから取得（確認なし）
           st.patients=data.patients;st.checker=data.checker||'';
-          saveNow();location.reload();
+          localStorage.setItem('v:p',JSON.stringify(st.patients));
+          localStorage.setItem('v:c',st.checker);
+          startAutoSync();
+          location.reload();
         }else if(lc>0&&rc>0){
           var mp=mergePatients(st.patients,data.patients);
           if(JSON.stringify(mp)!==JSON.stringify(st.patients)){
