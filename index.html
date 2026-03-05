@@ -70,6 +70,9 @@ label{touch-action:manipulation;user-select:none}
 .keyboard-close-btn{display:none;position:fixed;right:10px;bottom:280px;width:44px;height:44px;border-radius:50%;background:#ef4444;color:#fff;border:none;font-size:20px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(239,68,68,0.6);z-index:9999;align-items:center;justify-content:center;transition:bottom 0.2s ease}
 .keyboard-close-btn.show{display:flex}
 .keyboard-close-btn:active{transform:scale(0.95);opacity:0.8}
+.keyboard-enter-btn{display:none;position:fixed;right:64px;bottom:280px;width:80px;height:44px;border-radius:8px;background:#3b82f6;color:#fff;border:none;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(59,130,246,0.6);z-index:9999;align-items:center;justify-content:center;transition:bottom 0.2s ease}
+.keyboard-enter-btn.show{display:flex}
+.keyboard-enter-btn:active{transform:scale(0.95);opacity:0.8}
 .toggle-switch{display:inline-flex;align-items:center;gap:8px;}
 .toggle-switch input{display:none;}
 .toggle-slider{position:relative;width:50px;height:24px;background:#d1d5db;border-radius:12px;cursor:pointer;transition:background 0.3s;}
@@ -83,6 +86,7 @@ label{touch-action:manipulation;user-select:none}
 <body>
 <div class="loading" id="loading"><div class="spinner"></div><p>データを読み込み中...</p></div>
 <button class="keyboard-close-btn" id="closeKeyboardBtn" onclick="closeKeyboard()">✕</button>
+<button class="keyboard-enter-btn" id="enterKeyboardBtn" onclick="moveToNextInput()">次へ ↵</button>
 <div class="toolbar">
   <button class="btn btn-secondary" onclick="exportData()">📋 JSONエクスポート</button>
   <button class="btn btn-secondary" onclick="importData()">📄 データインポート</button>
@@ -228,17 +232,32 @@ function closeChangeAlert(){document.getElementById('changeAlertModal').style.di
 function updateKeyboardButtons(){
   var a=document.activeElement;
   var c=document.getElementById('closeKeyboardBtn');
+  var e=document.getElementById('enterKeyboardBtn');
   
-  if(!c)return;
+  if(!c||!e)return;
   
   if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'||a.tagName==='SELECT')){
     if(a.type==='checkbox'){
       c.classList.remove('show');
+      e.classList.remove('show');
       return;
     }
     
+    // テンキー（numeric/decimal）かどうか判定
+    var isNumericKeyboard=a.getAttribute('inputmode')==='numeric'||a.getAttribute('inputmode')==='decimal';
+    
+    // ✕ボタンは常に表示
     c.classList.add('show');
-    c.style.right='10px';
+    
+    // Enterボタンはテンキー時のみ表示
+    if(isNumericKeyboard){
+      e.classList.add('show');
+      c.style.right='154px';
+      e.style.right='64px';
+    }else{
+      e.classList.remove('show');
+      c.style.right='10px';
+    }
     
     if(window.visualViewport){
       setTimeout(function(){
@@ -248,15 +267,19 @@ function updateKeyboardButtons(){
         if(k>100){
           var b=k+10;
           c.style.bottom=b+'px';
+          e.style.bottom=b+'px';
         }else{
           c.style.bottom='280px';
+          e.style.bottom='280px';
         }
       },100);
     }else{
       c.style.bottom='280px';
+      e.style.bottom='280px';
     }
   }else{
     c.classList.remove('show');
+    e.classList.remove('show');
   }
 }
 
@@ -264,7 +287,11 @@ function addEnterKeyHints(){
   setTimeout(function(){
     var inputs=document.querySelectorAll('input:not([type="checkbox"]):not([type="button"]):not([type="date"])');
     inputs.forEach(function(input){
-      input.setAttribute('enterkeyhint','next');
+      var inputmode=input.getAttribute('inputmode');
+      // テンキー以外にenterkeyhint="next"を設定
+      if(inputmode!=='numeric'&&inputmode!=='decimal'){
+        input.setAttribute('enterkeyhint','next');
+      }
     });
   },50);
 }
