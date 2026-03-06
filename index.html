@@ -67,10 +67,10 @@ input[type="checkbox"].ng-check{accent-color:#ef4444}
 .toolbar button{padding:8px 16px;font-size:13px}
 input[type="checkbox"]{touch-action:manipulation}
 label{touch-action:manipulation;user-select:none}
-.keyboard-close-btn{display:none;position:fixed;right:10px;bottom:280px;width:44px;height:44px;border-radius:50%;background:#ef4444;color:#fff;border:none;font-size:20px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(239,68,68,0.6);z-index:9999;align-items:center;justify-content:center;transition:bottom 0.2s ease}
+.keyboard-close-btn{display:none;position:fixed;left:10px;bottom:280px;width:44px;height:44px;border-radius:50%;background:#ef4444;color:#fff;border:none;font-size:20px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(239,68,68,0.6);z-index:9999;align-items:center;justify-content:center;transition:bottom 0.2s ease;pointer-events:auto;user-select:none;-webkit-user-select:none}
 .keyboard-close-btn.show{display:flex}
 .keyboard-close-btn:active{transform:scale(0.95);opacity:0.8}
-.keyboard-enter-btn{display:none;position:fixed;right:64px;bottom:280px;width:80px;height:44px;border-radius:8px;background:#3b82f6;color:#fff;border:none;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(59,130,246,0.6);z-index:9999;align-items:center;justify-content:center;transition:bottom 0.2s ease}
+.keyboard-enter-btn{display:none;position:fixed;left:64px;bottom:280px;width:80px;height:44px;border-radius:8px;background:#3b82f6;color:#fff;border:none;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(59,130,246,0.6);z-index:9999;align-items:center;justify-content:center;transition:bottom 0.2s ease;pointer-events:auto;user-select:none;-webkit-user-select:none}
 .keyboard-enter-btn.show{display:flex}
 .keyboard-enter-btn:active{transform:scale(0.95);opacity:0.8}
 .toggle-switch{display:inline-flex;align-items:center;gap:8px;}
@@ -85,8 +85,8 @@ label{touch-action:manipulation;user-select:none}
 </head>
 <body>
 <div class="loading" id="loading"><div class="spinner"></div><p>データを読み込み中...</p></div>
-<button class="keyboard-close-btn" id="closeKeyboardBtn" onmousedown="event.preventDefault();closeKeyboard()">✕</button>
-<button class="keyboard-enter-btn" id="enterKeyboardBtn" onmousedown="event.preventDefault();moveToNextInput()">次へ ↵</button>
+<button class="keyboard-close-btn" id="closeKeyboardBtn" ontouchstart="event.preventDefault();event.stopPropagation();closeKeyboard();return false" onmousedown="event.preventDefault();event.stopPropagation();closeKeyboard();return false">✕</button>
+<button class="keyboard-enter-btn" id="enterKeyboardBtn" ontouchstart="event.preventDefault();event.stopPropagation();moveToNextInput();return false" onmousedown="event.preventDefault();event.stopPropagation();moveToNextInput();return false">次へ ↵</button>
 <div class="toolbar">
   <button class="btn btn-secondary" onclick="exportData()">📋 JSONエクスポート</button>
   <button class="btn btn-secondary" onclick="importData()">📄 データインポート</button>
@@ -256,11 +256,11 @@ function updateKeyboardButtons(){
     // Enterボタンはテンキー時のみ表示
     if(isNumericKeyboard){
       e.classList.add('show');
-      c.style.right='154px';
-      e.style.right='64px';
+      c.style.left='10px';
+      e.style.left='64px';
     }else{
       e.classList.remove('show');
-      c.style.right='10px';
+      c.style.left='10px';
     }
     
     if(window.visualViewport){
@@ -300,18 +300,33 @@ function addEnterKeyHints(){
   },50);
 }
 
-function closeKeyboard(){if(document.activeElement)document.activeElement.blur();}
+function closeKeyboard(){
+  setTimeout(function(){
+    if(document.activeElement)document.activeElement.blur();
+  },10);
+}
 function moveToNextInput(){
-  if(!lastFocusedInput)return;
-  var inputs=Array.from(document.querySelectorAll('input:not([type="checkbox"]):not([disabled]),textarea:not([disabled]),select:not([disabled])'));
-  var idx=inputs.indexOf(lastFocusedInput);
-  if(idx>-1&&idx<inputs.length-1){
-    inputs[idx+1].focus();
-    if(inputs[idx+1].select)inputs[idx+1].select();
-  }
+  setTimeout(function(){
+    // 現在アクティブな要素を最優先で取得
+    var current=document.activeElement;
+    if(!current||current.tagName==='BUTTON'){
+      // ボタンがフォーカスされている場合はlastFocusedInputを使用
+      current=lastFocusedInput;
+    }
+    if(!current)return;
+    
+    var inputs=Array.from(document.querySelectorAll('input:not([type="checkbox"]):not([disabled]),textarea:not([disabled]),select:not([disabled])'));
+    var idx=inputs.indexOf(current);
+    if(idx>-1&&idx<inputs.length-1){
+      inputs[idx+1].focus();
+      if(inputs[idx+1].select)inputs[idx+1].select();
+      lastFocusedInput=inputs[idx+1];
+    }
+  },10);
 }
 document.addEventListener('focusin',function(e){updateKeyboardButtons();});
 document.addEventListener('focusout',function(e){setTimeout(updateKeyboardButtons,50);});
+document.addEventListener('input',function(e){if(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'))lastFocusedInput=e.target;});
 if(window.visualViewport){window.visualViewport.addEventListener('resize',updateKeyboardButtons);window.visualViewport.addEventListener('scroll',updateKeyboardButtons);}
 document.addEventListener('keydown',function(e){if(e.key==='Enter'&&e.target.tagName==='INPUT'){if(e.target.type==='checkbox'||e.target.type==='button')return;e.preventDefault();moveToNextInput();}});
 
