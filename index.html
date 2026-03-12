@@ -623,8 +623,10 @@ function syncToGoogleDrive(){
   findOrCreateDriveFile(function(fileId){
     var lm=localStorage.getItem('v:lastModified')||new Date().toISOString();
     // Driveには全データ（weaned含む）を保存してデバイス間の復活を防止
-    var wids=st.weanedIds||JSON.parse(localStorage.getItem('v:weaned_ids')||'[]');
-    var weanedStubs=wids.filter(function(id){return!st.patients.find(function(p){return p.id===id;});}).map(function(id){return{id:id,weaned:true};});
+    // weanedIDリストからアクティブ患者のIDは除外（安全のため）
+    var activeIds=st.patients.map(function(p){return p.id;});
+    var wids=(st.weanedIds||JSON.parse(localStorage.getItem('v:weaned_ids')||'[]')).filter(function(id){return activeIds.indexOf(id)===-1;});
+    var weanedStubs=wids.map(function(id){return{id:id,weaned:true};});
     var allPatients=st.patients.concat(weanedStubs);
     var data={patients:allPatients,checker:st.checker,lastSync:new Date().toISOString(),lastModified:lm};
     var dataContent=JSON.stringify(data,null,2);
@@ -724,11 +726,13 @@ function syncFromGoogleDrive(){
     }
     // マージ: ローカルのweanedIDリストをweaned患者として復元してDriveデータと合算
     var localWeanedIds=st.weanedIds||[];
-    // Driveのweanedデータを取得
-    var driveWeaned=data.patients.filter(function(p){return p.weaned;});
-    // ローカルにはないweanedIDをDriveから補完
+    // Driveのweanedデータを取得（アクティブ患者のIDは絶対に含めない）
+    var driveActiveIds=data.patients.filter(function(p){return!p.weaned;}).map(function(p){return p.id;});
+    var driveWeaned=data.patients.filter(function(p){return p.weaned&&driveActiveIds.indexOf(p.id)===-1;});
+    // ローカルにはないweanedIDをDriveから補完（ただしアクティブIDは除外）
+    var localActiveIds=st.patients.map(function(p){return p.id;});
     driveWeaned.forEach(function(wp){
-      if(localWeanedIds.indexOf(wp.id)===-1)localWeanedIds.push(wp.id);
+      if(localWeanedIds.indexOf(wp.id)===-1&&localActiveIds.indexOf(wp.id)===-1)localWeanedIds.push(wp.id);
     });
     st.weanedIds=localWeanedIds;
     // マージはアクティブ患者同士で行い、weanedIDに含まれるものはweanedとして扱う
@@ -779,8 +783,9 @@ function showManualSyncBtn(show){var btn=document.getElementById('manual-sync-bt
 function uploadToDrive(){
   return new Promise(function(resolve,reject){
     var lm=localStorage.getItem('v:lastModified')||new Date().toISOString();
-    var wids=st.weanedIds||JSON.parse(localStorage.getItem('v:weaned_ids')||'[]');
-    var weanedStubs=wids.filter(function(id){return!st.patients.find(function(p){return p.id===id;});}).map(function(id){return{id:id,weaned:true};});
+    var activeIds=st.patients.map(function(p){return p.id;});
+    var wids=(st.weanedIds||JSON.parse(localStorage.getItem('v:weaned_ids')||'[]')).filter(function(id){return activeIds.indexOf(id)===-1;});
+    var weanedStubs=wids.map(function(id){return{id:id,weaned:true};});
     var allPatients=st.patients.concat(weanedStubs);
     var data={patients:allPatients,checker:st.checker,lastSync:new Date().toISOString(),lastModified:lm};
     var form=new FormData();
