@@ -87,6 +87,7 @@ label{touch-action:manipulation;user-select:none}
   <button class="btn btn-secondary" onclick="exportData()">📋 JSONエクスポート</button>
   <button class="btn btn-secondary" onclick="importData()">📄 データインポート</button>
   <button class="btn btn-primary" id="gdrive-btn" onclick="toggleGoogleDrive()" style="background:#4285f4">☁️ Google Drive連携</button>
+  <button class="btn btn-primary" id="manual-sync-btn" onclick="manualSync()" style="background:#0ea5e9;display:none">🔄 今すぐ同期</button>
   <span style="margin-left:auto;font-size:12px;align-self:center;display:flex;align-items:center;gap:12px">
     <span id="gdrive-status-text" style="display:none;color:#059669;font-weight:600">✓ 同期済み</span>
     <span id="gdrive-sync-progress" style="display:none;color:#f59e0b;font-weight:600">🔄 同期中...</span>
@@ -476,13 +477,13 @@ function updateTb(i,p){var dc=Math.min(p.records.length,3);var dr=p.records.slic
 
 function updateSyncStatus(status){var st2=document.getElementById('gdrive-status-text');var pr=document.getElementById('gdrive-sync-progress');if(!st2||!pr)return;if(status==='synced'){st2.style.display='inline';st2.style.color='#059669';st2.textContent='✓ 同期済 '+(lastSyncTime||'');pr.style.display='none';}else if(status==='syncing'){st2.style.display='none';pr.style.display='inline';}else if(status==='error'){st2.style.display='inline';st2.style.color='#ef4444';st2.textContent='⚠️ 同期エラー';pr.style.display='none';}else if(status==='offline'){st2.style.display='inline';st2.style.color='#6b7280';st2.textContent='📴 オフライン';pr.style.display='none';}else{st2.style.display='none';pr.style.display='none';}}
 
-function initGoogleDrive(){var token=localStorage.getItem('gdrive:token');var fileId=localStorage.getItem('gdrive:fileId');if(token){gdriveToken=token;gdriveFileId=fileId;document.getElementById('gdrive-btn').textContent='☁️ 同期有効';document.getElementById('gdrive-btn').style.background='#34a853';startAutoSync();syncFromGoogleDrive();}}
+function initGoogleDrive(){var token=localStorage.getItem('gdrive:token');var fileId=localStorage.getItem('gdrive:fileId');if(token){gdriveToken=token;gdriveFileId=fileId;document.getElementById('gdrive-btn').textContent='☁️ 同期有効';document.getElementById('gdrive-btn').style.background='#34a853';showManualSyncBtn(true);startAutoSync();syncFromGoogleDrive();}}
 
-function toggleGoogleDrive(){if(gdriveToken){if(confirm('Google Drive連携を解除しますか？')){gdriveToken=null;gdriveFileId=null;localStorage.removeItem('gdrive:token');localStorage.removeItem('gdrive:fileId');stopAutoSync();document.getElementById('gdrive-btn').textContent='☁️ Google Drive連携';document.getElementById('gdrive-btn').style.background='#4285f4';updateSyncStatus('none');alert('Google Drive連携を解除しました');}}else{authenticateGoogleDrive();}}
+function toggleGoogleDrive(){if(gdriveToken){if(confirm('Google Drive連携を解除しますか？')){gdriveToken=null;gdriveFileId=null;localStorage.removeItem('gdrive:token');localStorage.removeItem('gdrive:fileId');stopAutoSync();document.getElementById('gdrive-btn').textContent='☁️ Google Drive連携';document.getElementById('gdrive-btn').style.background='#4285f4';showManualSyncBtn(false);updateSyncStatus('none');alert('Google Drive連携を解除しました');}}else{authenticateGoogleDrive();}}
 
 function authenticateGoogleDrive(){var clientId='749739667971-t8rcijk84v2lj6aghuu3f04disomur39.apps.googleusercontent.com';var redirectUri=window.location.origin+window.location.pathname;if(clientId==='YOUR_CLIENT_ID.apps.googleusercontent.com'){alert('Google Drive連携の初期設定が必要です。\n\nOAuth 2.0クライアントIDを取得してください。\n\n現在のリダイレクトURI:\n'+redirectUri);}else{var authUrl='https://accounts.google.com/o/oauth2/v2/auth?client_id='+clientId+'&redirect_uri='+encodeURIComponent(redirectUri)+'&response_type=token&scope='+encodeURIComponent('https://www.googleapis.com/auth/drive.file');window.location.href=authUrl;}}
 
-function handleAuthCallback(){var hash=window.location.hash;if(hash.indexOf('access_token')>=0){var params=new URLSearchParams(hash.substring(1));var token=params.get('access_token');if(token){gdriveToken=token;localStorage.setItem('gdrive:token',token);document.getElementById('gdrive-btn').textContent='☁️ 同期有効';document.getElementById('gdrive-btn').style.background='#34a853';window.location.hash='';startAutoSync();findOrCreateDriveFile(function(fileId){if(fileId){console.log('既存ファイルを使用します');syncFromGoogleDrive();}else{console.log('新規ファイルを作成します');syncToGoogleDrive();}});alert('✅ Google Drive連携が完了しました！');}}}
+function handleAuthCallback(){var hash=window.location.hash;if(hash.indexOf('access_token')>=0){var params=new URLSearchParams(hash.substring(1));var token=params.get('access_token');if(token){gdriveToken=token;localStorage.setItem('gdrive:token',token);document.getElementById('gdrive-btn').textContent='☁️ 同期有効';document.getElementById('gdrive-btn').style.background='#34a853';showManualSyncBtn(true);window.location.hash='';startAutoSync();findOrCreateDriveFile(function(fileId){if(fileId){console.log('既存ファイルを使用します');syncFromGoogleDrive();}else{console.log('新規ファイルを作成します');syncToGoogleDrive();}});alert('✅ Google Drive連携が完了しました！');}}}
 
 /* ============================================================
    【修正3】オフライン対応の自動同期
@@ -585,7 +586,7 @@ function syncToGoogleDrive(){
   });
 }
 
-function mergePatients(lp,rp){
+function mergePatients(lp,rp,localModified,remoteModified){
   var merged=[];
   var ids=new Set();
   lp.concat(rp).forEach(function(p){
@@ -594,13 +595,14 @@ function mergePatients(lp,rp){
     var l=lp.find(function(x){return x.id===p.id;});
     var r=rp.find(function(x){return x.id===p.id;});
     if(l&&r){
-      var ld=l.records&&l.records.length>0?new Date(l.records[l.records.length-1].date||0):new Date(0);
-      var rd=r.records&&r.records.length>0?new Date(r.records[r.records.length-1].date||0):new Date(0);
-      // レコード数が多い方を優先（同じ場合は日付が新しい方）
+      // 1. lastModifiedで比較（新しい方を採用）
+      if(localModified&&remoteModified&&localModified.getTime()!==remoteModified.getTime()){
+        merged.push(localModified>remoteModified?l:r);return;
+      }
+      // 2. lastModifiedがない or 同じ→レコード数が少ない方を採用（離脱済みの可能性）
       var lCount=l.records?l.records.length:0;
       var rCount=r.records?r.records.length:0;
-      if(lCount!==rCount)merged.push(lCount>rCount?l:r);
-      else merged.push(ld>=rd?l:r);
+      merged.push(lCount<=rCount?l:r);
     }else{merged.push(l||r);}
   });
   return merged;
@@ -653,7 +655,7 @@ function syncFromGoogleDrive(){
       return;
     }
     // マージして差分があれば反映
-    var merged=mergePatients(st.patients,data.patients);
+    var merged=mergePatients(st.patients,data.patients,localModified,remoteModified);
     var mergedStr=JSON.stringify(merged);
     if(mergedStr!==cd){
       st.patients=merged;
@@ -684,6 +686,72 @@ function syncFromGoogleDrive(){
       alert('⚠️ Google Driveのログインが切れました。\n\n「☁️ Google Drive連携」ボタンを押して再連携してください。');
     }else{
       updateSyncStatus('error');
+    }
+  });
+}
+
+function showManualSyncBtn(show){var btn=document.getElementById('manual-sync-btn');if(btn)btn.style.display=show?'inline-block':'none';}
+
+// Drive用アップロード処理を共通化
+function uploadToDrive(){
+  return new Promise(function(resolve,reject){
+    var lm=localStorage.getItem('v:lastModified')||new Date().toISOString();
+    var data={patients:st.patients,checker:st.checker,lastSync:new Date().toISOString(),lastModified:lm};
+    var form=new FormData();
+    form.append('metadata',new Blob([JSON.stringify({name:GDRIVE_FILE_NAME,mimeType:'application/json'})],{type:'application/json'}));
+    form.append('file',new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
+    var url=gdriveFileId?'https://www.googleapis.com/upload/drive/v3/files/'+gdriveFileId+'?uploadType=multipart':'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+    var method=gdriveFileId?'PATCH':'POST';
+    fetch(url,{method:method,headers:{'Authorization':'Bearer '+gdriveToken},body:form}).then(function(r){return r.json();}).then(function(result){
+      if(result.id&&!gdriveFileId){gdriveFileId=result.id;localStorage.setItem('gdrive:fileId',result.id);}
+      resolve(result);
+    }).catch(reject);
+  });
+}
+
+function manualSync(){
+  if(!gdriveToken){alert('Google Drive連携が必要です');return;}
+  if(!navigator.onLine){alert('オフラインのため同期できません\n\nWi-Fiに接続してから再度お試しください');return;}
+  var btn=document.getElementById('manual-sync-btn');
+  if(btn){btn.disabled=true;btn.textContent='同期中...';}
+  updateSyncStatus('syncing');
+  fetch('https://www.googleapis.com/drive/v3/files/'+gdriveFileId+'?alt=media',{
+    headers:{'Authorization':'Bearer '+gdriveToken}
+  }).then(function(r){
+    if(r.status===401)throw new Error('401');
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    return r.json();
+  }).then(function(data){
+    var localModified=new Date(localStorage.getItem('v:lastModified')||0);
+    var remoteModified=new Date(data.lastModified||data.lastSync||0);
+    if(data.patients&&data.patients.length>0){
+      var merged=mergePatients(st.patients,data.patients,localModified,remoteModified);
+      st.patients=merged;
+      if(remoteModified>localModified)st.checker=data.checker||st.checker;
+    }
+    localStorage.setItem('v:p',JSON.stringify(st.patients));
+    localStorage.setItem('v:c',st.checker);
+    return uploadToDrive();
+  }).then(function(){
+    syncFailCount=0;
+    var now=new Date();
+    lastSyncTime=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+    updateSyncStatus('synced');
+    if(btn){btn.disabled=false;btn.textContent='🔄 今すぐ同期';}
+    location.reload();
+  }).catch(function(e){
+    console.error('手動同期エラー:',e);
+    if(btn){btn.disabled=false;btn.textContent='🔄 今すぐ同期';}
+    if(e.message&&e.message.indexOf('401')>=0){
+      gdriveToken=null;localStorage.removeItem('gdrive:token');localStorage.removeItem('gdrive:fileId');
+      gdriveFileId=null;showManualSyncBtn(false);
+      document.getElementById('gdrive-btn').textContent='☁️ Google Drive連携';
+      document.getElementById('gdrive-btn').style.background='#4285f4';
+      updateSyncStatus('none');
+      alert('⚠️ Google Driveのログインが切れました。再連携してください。');
+    }else{
+      updateSyncStatus('error');
+      alert('同期に失敗しました。\nネットワーク接続を確認してください。');
     }
   });
 }
