@@ -139,7 +139,7 @@ label{touch-action:manipulation;user-select:none}
 
 <div id="overview" class="tab-content active">
   <div class="container">
-    <h1>人工呼吸器装着者一覧 <span style="font-size:12px;font-weight:400;color:#9ca3af;letter-spacing:0.05em">v1.5.1</span></h1>
+    <h1>人工呼吸器装着者一覧 <span style="font-size:12px;font-weight:400;color:#9ca3af;letter-spacing:0.05em">v1.5.2</span></h1>
     <div class="checker-section">
       <h2>本日のチェック者</h2>
       <button onclick="openCheckerModal(false)" style="width:100%;padding:12px 16px;border:2px solid #d1d5db;border-radius:8px;background:#fff;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:14px">
@@ -307,20 +307,125 @@ var MODES_BY_TYPE={savina:['SIMV','BIPAP','CPAP','IPPV','一時離脱中'],savin
 var MASTER_CATEGORIES=[
   {key:'ettube',label:'挿管チューブ',fields:['メーカー','商品名','規格']},
   {key:'trach',label:'気管切開カニューレ',fields:['メーカー','商品名','規格']},
-  {key:'circuit',label:'呼吸器回路',fields:['メーカー','商品名']},
-  {key:'hmef',label:'人工鼻',fields:['メーカー','商品名']}
+  {key:'suction_et',label:'気管支吸引カテーテル（挿管用）',fields:['メーカー','商品名']},
+  {key:'suction_tc',label:'気管支吸引カテーテル（気切用）',fields:['メーカー','商品名']},
+  {key:'v60mask',label:'V60用マスク',fields:['メーカー','商品名','サイズ']}
 ];
+var MASTER_PRESETS={
+  ettube:[
+    {メーカー:'コビディエンジャパン',商品名:'TaperGuard Evac気管チューブ',規格:'6.0mm'},
+    {メーカー:'コビディエンジャパン',商品名:'TaperGuard Evac気管チューブ',規格:'6.5mm'},
+    {メーカー:'コビディエンジャパン',商品名:'TaperGuard Evac気管チューブ',規格:'7.0mm'},
+    {メーカー:'コビディエンジャパン',商品名:'TaperGuard Evac気管チューブ',規格:'7.5mm'},
+    {メーカー:'コビディエンジャパン',商品名:'TaperGuard Evac気管チューブ',規格:'8.0mm'},
+    {メーカー:'コビディエンジャパン',商品名:'TaperGuard Evac気管チューブ',規格:'8.5mm'}
+  ],
+  trach:[
+    {メーカー:'泉工医科工業',商品名:'メラ ソフィット クリア C-6CS',規格:'6.0mm'},
+    {メーカー:'泉工医科工業',商品名:'メラ ソフィット クリア C-7CS',規格:'7.0mm'},
+    {メーカー:'泉工医科工業',商品名:'メラ ソフィット クリア C-8CS',規格:'8.0mm'},
+    {メーカー:'泉工医科工業',商品名:'メラ ソフィット クリア C-9CS',規格:'9.0mm'}
+  ],
+  suction_et:[
+    {メーカー:'エアライフジャパン',商品名:'12F トラックケア-72 直型 ダブルスイーベルエルボー 54cm'}
+  ],
+  suction_tc:[
+    {メーカー:'エアライフジャパン',商品名:'12F トラックケア-72 気管切開用 ダブルスイーベルエルボー 30.5cm'}
+  ],
+  v60mask:[
+    {メーカー:'ResMed',商品名:'AirFit F20マスク',サイズ:'S'},
+    {メーカー:'ResMed',商品名:'AirFit F20マスク',サイズ:'M'},
+    {メーカー:'ResMed',商品名:'AirFit F20マスク',サイズ:'L'}
+  ]
+};
+
+// 呼吸器設定から回路・付属品を自動決定
+var CIRCUIT_AUTO={
+  // key: ventType_humidification_intubation → {circuit, accessories:[]}
+  // IPPV系
+  'ippv_hmef_intubation':{
+    circuit:{メーカー:'エム・シー・メディカル',商品名:'フレックス成人用人工鼻呼吸回路1.6m'},
+    accessories:[
+      {label:'人工鼻',メーカー:'エム・シー・メディカル',商品名:'インターサージカル人工鼻フィルタS'},
+      {label:'吸引カテーテル',メーカー:'エアライフジャパン',商品名:'12F トラックケア-72 直型 ダブルスイーベルエルボー 54cm'}
+    ]
+  },
+  'ippv_hmef_tracheostomy':{
+    circuit:{メーカー:'エム・シー・メディカル',商品名:'フレックス成人用人工鼻呼吸回路1.6m'},
+    accessories:[
+      {label:'人工鼻',メーカー:'エム・シー・メディカル',商品名:'インターサージカル人工鼻フィルタS'},
+      {label:'吸引カテーテル',メーカー:'エアライフジャパン',商品名:'12F トラックケア-72 気管切開用 ダブルスイーベルエルボー 30.5cm'}
+    ]
+  },
+  'ippv_heated_intubation':{
+    circuit:{メーカー:'Fisher&Paykel',商品名:'Evaqua2 RT380'},
+    accessories:[
+      {label:'吸引カテーテル',メーカー:'エアライフジャパン',商品名:'12F トラックケア-72 直型 ダブルスイーベルエルボー 54cm'}
+    ]
+  },
+  'ippv_heated_tracheostomy':{
+    circuit:{メーカー:'Fisher&Paykel',商品名:'Evaqua2 RT380'},
+    accessories:[
+      {label:'吸引カテーテル',メーカー:'エアライフジャパン',商品名:'12F トラックケア-72 気管切開用 ダブルスイーベルエルボー 30.5cm'}
+    ]
+  },
+  // NPPV系
+  'v60':{
+    circuit:{メーカー:'エム・シー・メディカル',商品名:'スムーズポア成人用呼気ポート回路キットモニタリング/WT'},
+    accessories:[
+      {label:'チェンバー',メーカー:'フィリップスジャパン',商品名:'PMC300チェンバー シングルユース（F40）15723020'}
+    ]
+  },
+  'airvo2':{
+    circuit:{メーカー:'Fisher&Paykel',商品名:'フロージェネレーターAirvo 900PT561'},
+    accessories:[
+      {label:'カニューレ',メーカー:'Fisher&Paykel',商品名:'F&P オプティフロー M'}
+    ]
+  },
+  'maxventury':{
+    circuit:{メーカー:'エム・シー・メディカル',商品名:'フレックス成人用シングルリム熱線回路チャンバー付'},
+    accessories:[
+      {label:'カニューレ',メーカー:'Fisher&Paykel',商品名:'F&P オプティフロー M'}
+    ]
+  }
+};
+
+function getCircuitAuto(p){
+  var vent=VENTILATORS.find(function(v){return v.id===p.ventilatorId;});
+  if(!vent)return null;
+  var type=vent.type;
+  // NPPV機器は機種タイプで直接判定
+  if(type==='v60')return CIRCUIT_AUTO['v60'];
+  if(type==='airvo2')return CIRCUIT_AUTO['airvo2'];
+  if(type==='maxventury')return CIRCUIT_AUTO['maxventury'];
+  // IPPV系は加湿方法と気道確保で判定
+  var hum=p.humidificationType||'hmef';
+  var intub=p.intubationType||'intubation';
+  var key='ippv_'+hum+'_'+intub;
+  return CIRCUIT_AUTO[key]||null;
+}
+
 var masterData={};
 
 function loadMaster(){
   try{
     var saved=localStorage.getItem('v:master');
-    if(saved)masterData=JSON.parse(saved);
+    if(saved){
+      masterData=JSON.parse(saved);
+    }else{
+      // 初回：プリセットをデフォルトとして設定
+      masterData={};
+      MASTER_CATEGORIES.forEach(function(cat){
+        masterData[cat.key]=MASTER_PRESETS[cat.key]||[];
+      });
+      localStorage.setItem('v:master',JSON.stringify(masterData));
+    }
     MASTER_CATEGORIES.forEach(function(cat){
       if(!masterData[cat.key])masterData[cat.key]=[];
     });
   }catch(e){
-    MASTER_CATEGORIES.forEach(function(cat){masterData[cat.key]=[];});
+    masterData={};
+    MASTER_CATEGORIES.forEach(function(cat){masterData[cat.key]=MASTER_PRESETS[cat.key]||[];});
   }
 }
 
@@ -422,6 +527,8 @@ function openReportModal(i){
 
   var isTrach=p.intubationType==='tracheostomy';
   var isHeated=p.humidificationType==='heated';
+  var isNPPV=p.ventType==='nppv';
+  var circuitAuto=getCircuitAuto(p);
 
   var html='';
 
@@ -439,37 +546,48 @@ function openReportModal(i){
   // 呼吸器情報
   html+='<div class="report-section"><h3>呼吸器情報</h3>';
   html+='<div class="report-field"><label>使用機種</label><div class="report-value">'+ventName+'</div></div>';
-  html+='<div class="report-field"><label>気道確保</label><div class="report-value">'+(isTrach?'気管切開':'挿管')+'</div></div>';
-  html+='<div class="report-field"><label>加湿方法</label><div class="report-value">'+(isHeated?'加温加湿器':'人工鼻')+'</div></div>';
-  html+='</div>';
-
-  // 気道デバイス
-  html+='<div class="report-section"><h3>'+(isTrach?'気管切開カニューレ':'挿管チューブ')+'</h3>';
-  html+='<div class="report-field"><label>製品</label>'+selWithCustom(isTrach?'trach':'ettube','rep_airway','メーカー / 商品名 / 規格を入力')+'</div>';
-  html+='<div id="rep_airway_detail" style="display:none">';
-  html+='<div class="report-field"><label>メーカー</label><input id="rep_airway_maker" placeholder="メーカー"></div>';
-  html+='<div class="report-field"><label>商品名</label><input id="rep_airway_product" placeholder="商品名"></div>';
-  html+='<div class="report-field"><label>規格</label><input id="rep_airway_size" placeholder="規格（例: 7.5mm）"></div>';
-  html+='</div>';
-
-  html+='<div class="report-field"><label>カフ圧</label><input id="rep_cuff" placeholder="例: 20cmH2O"></div>';
-  html+='</div>';
-
-  // 呼吸器回路
-  html+='<div class="report-section"><h3>呼吸器回路</h3>';
-  html+='<div class="report-field"><label>回路</label>'+selWithCustom('circuit','rep_circuit','メーカー / 商品名を入力')+'</div>';
-  html+='<div id="rep_circuit_detail" style="display:none">';
-  html+='<div class="report-field"><label>メーカー</label><input id="rep_circuit_maker" placeholder="メーカー"></div>';
-  html+='<div class="report-field"><label>商品名</label><input id="rep_circuit_product" placeholder="商品名"></div>';
-  html+='</div>';
-  if(!isHeated){
-    html+='<div class="report-field"><label>人工鼻</label>'+selWithCustom('hmef','rep_hmef','メーカー / 商品名を入力')+'</div>';
-    html+='<div id="rep_hmef_detail" style="display:none">';
-    html+='<div class="report-field"><label>メーカー</label><input id="rep_hmef_maker" placeholder="メーカー"></div>';
-    html+='<div class="report-field"><label>商品名</label><input id="rep_hmef_product" placeholder="商品名"></div>';
-    html+='</div>';
+  if(!isNPPV){
+    html+='<div class="report-field"><label>気道確保</label><div class="report-value">'+(isTrach?'気管切開':'挿管')+'</div></div>';
+    html+='<div class="report-field"><label>加湿方法</label><div class="report-value">'+(isHeated?'加温加湿器':'人工鼻')+'</div></div>';
   }
   html+='</div>';
+
+  // 回路・付属品（自動）
+  html+='<div class="report-section"><h3>呼吸器回路・付属品</h3>';
+  if(circuitAuto){
+    html+='<div class="report-field"><label>回路</label><div class="report-value">'+circuitAuto.circuit.メーカー+' / '+circuitAuto.circuit.商品名+'</div></div>';
+    (circuitAuto.accessories||[]).forEach(function(acc){
+      html+='<div class="report-field"><label>'+acc.label+'</label><div class="report-value">'+acc.メーカー+' / '+acc.商品名+'</div></div>';
+    });
+  }else{
+    html+='<div class="report-field"><label>回路</label><div class="report-value" style="color:#9ca3af">呼吸器未選択</div></div>';
+  }
+  html+='</div>';
+
+  // 気道デバイス（IPPVのみ）
+  if(!isNPPV){
+    html+='<div class="report-section"><h3>'+(isTrach?'気管切開カニューレ':'挿管チューブ')+'</h3>';
+    html+='<div class="report-field"><label>製品</label>'+selWithCustom(isTrach?'trach':'ettube','rep_airway','メーカー / 商品名 / 規格を入力')+'</div>';
+    html+='<div id="rep_airway_detail" style="display:none">';
+    html+='<div class="report-field"><label>メーカー</label><input id="rep_airway_maker" placeholder="メーカー"></div>';
+    html+='<div class="report-field"><label>商品名</label><input id="rep_airway_product" placeholder="商品名"></div>';
+    html+='<div class="report-field"><label>規格</label><input id="rep_airway_size" placeholder="規格（例: 7.5mm）"></div>';
+    html+='</div>';
+    html+='<div class="report-field"><label>カフ圧</label><input id="rep_cuff" placeholder="例: 20cmH2O"></div>';
+    html+='</div>';
+  }
+
+  // V60用マスク
+  if(vent&&vent.type==='v60'){
+    html+='<div class="report-section"><h3>V60用マスク</h3>';
+    html+='<div class="report-field"><label>マスク</label>'+selWithCustom('v60mask','rep_v60mask','メーカー / 商品名 / サイズを入力')+'</div>';
+    html+='<div id="rep_v60mask_detail" style="display:none">';
+    html+='<div class="report-field"><label>メーカー</label><input id="rep_v60mask_maker" placeholder="メーカー"></div>';
+    html+='<div class="report-field"><label>商品名</label><input id="rep_v60mask_product" placeholder="商品名"></div>';
+    html+='<div class="report-field"><label>サイズ</label><input id="rep_v60mask_size" placeholder="サイズ（例: M）"></div>';
+    html+='</div>';
+    html+='</div>';
+  }
 
   // 最新設定値
   if(lr){
@@ -490,22 +608,20 @@ function openReportModal(i){
     if(lr.spo2)html+='<div class="report-field"><label>SpO2</label><div class="report-value">'+lr.spo2+' %</div></div>';
     html+='</div>';
 
-    // 鎮静・鎮痛
     var activeSed=(lr.sedations||[]).filter(function(s){return!s.discontinued;});
     var activeAna=(lr.analgesics||[]).filter(function(a){return!a.discontinued;});
     if(activeSed.length>0||activeAna.length>0){
       html+='<div class="report-section"><h3>鎮静・鎮痛</h3>';
       activeSed.forEach(function(s,idx){
-        html+='<div class="report-field"><label>鎮静薬'+(idx+1)+'</label><div class="report-value">'+(s.drug||'-')+(s.dose?' / '+s.dose:'')+'</div></div>';
+        html+='<div class="report-field"><label>鎮静薬'+(idx+1)+'</label><div class="report-value">'+(s.drug||'-')+(s.dose?' / '+s.dose+'ml/h':'')+'</div></div>';
       });
       activeAna.forEach(function(a,idx){
-        html+='<div class="report-field"><label>鎮痛薬'+(idx+1)+'</label><div class="report-value">'+(a.drug||'-')+(a.dose?' / '+a.dose:'')+'</div></div>';
+        html+='<div class="report-field"><label>鎮痛薬'+(idx+1)+'</label><div class="report-value">'+(a.drug||'-')+(a.dose?' / '+a.dose+'ml/h':'')+'</div></div>';
       });
       html+='</div>';
     }
   }
 
-  // 備考
   html+='<div class="report-section"><h3>備考・申し送り</h3>';
   html+='<div class="report-field"><label>備考</label><textarea id="rep_notes" placeholder="転院先への申し送り事項など" style="flex:1;min-width:200px;min-height:80px">'+(lr&&lr.notes?lr.notes:'')+'</textarea></div>';
   html+='</div>';
@@ -556,18 +672,18 @@ function buildReportData(){
   var ward=getWard(p.room);
   var isTrach=p.intubationType==='tracheostomy';
   var isHeated=p.humidificationType==='heated';
+  var isNPPV=p.ventType==='nppv';
   var dayNum=p.startDate&&lr&&lr.date?getDayNumber(p.startDate,lr.date):'-';
-
-  var airwayData=getReportFieldVal('rep_airway',['maker','product','size']);
-  var circuitData=getReportFieldVal('rep_circuit',['maker','product']);
-  var hmefData=isHeated?{}:getReportFieldVal('rep_hmef',['maker','product']);
+  var circuitAuto=getCircuitAuto(p);
+  var airwayData=isNPPV?{}:getReportFieldVal('rep_airway',['maker','product','size']);
+  var v60maskData=(vent&&vent.type==='v60')?getReportFieldVal('rep_v60mask',['maker','product','size']):{};
 
   return{
-    patient:p,ventName:ventName,ward:ward,isTrach:isTrach,isHeated:isHeated,dayNum:dayNum,lr:lr,
+    patient:p,ventName:ventName,ward:ward,isTrach:isTrach,isHeated:isHeated,isNPPV:isNPPV,dayNum:dayNum,lr:lr,
     transferDate:document.getElementById('rep_transferUndecided')&&document.getElementById('rep_transferUndecided').checked?'未定':(document.getElementById('rep_transferDate')?document.getElementById('rep_transferDate').value:''),
     dest:document.getElementById('rep_dest')?document.getElementById('rep_dest').value:'',
-    cuff:document.getElementById('rep_cuff')?document.getElementById('rep_cuff').value:'',
-    airway:airwayData,circuit:circuitData,hmef:hmefData,
+    cuff:(!isNPPV&&document.getElementById('rep_cuff'))?document.getElementById('rep_cuff').value:'',
+    airway:airwayData,circuitAuto:circuitAuto,v60mask:v60maskData,
     notes:document.getElementById('rep_notes')?document.getElementById('rep_notes').value:''
   };
 }
@@ -604,26 +720,40 @@ function buildReportHTML(d,forPrint){
   html+='<table class="print-table">';
   html+=sectionHeader('呼吸器情報');
   html+=row('使用機種',d.ventName);
-  html+=row('気道確保',d.isTrach?'気管切開':'挿管');
-  html+=row('加湿方法',d.isHeated?'加温加湿器':'人工鼻');
-  html+='</table>';
-
-  html+='<table class="print-table">';
-  html+=sectionHeader(d.isTrach?'気管切開カニューレ':'挿管チューブ');
-  var airwayStr=Object.values(d.airway).filter(Boolean).join(' / ');
-  html+=row('製品',airwayStr);
-  html+=row('カフ圧',d.cuff);
-  html+='</table>';
-
-  html+='<table class="print-table">';
-  html+=sectionHeader('呼吸器回路');
-  var circuitStr=Object.values(d.circuit).filter(Boolean).join(' / ');
-  html+=row('回路',circuitStr);
-  if(!d.isHeated){
-    var hmefStr=Object.values(d.hmef).filter(Boolean).join(' / ');
-    html+=row('人工鼻',hmefStr);
+  if(!d.isNPPV){
+    html+=row('気道確保',d.isTrach?'気管切開':'挿管');
+    html+=row('加湿方法',d.isHeated?'加温加湿器':'人工鼻');
   }
   html+='</table>';
+
+  // 回路・付属品（自動）
+  if(d.circuitAuto){
+    html+='<table class="print-table">';
+    html+=sectionHeader('呼吸器回路・付属品');
+    html+=row('回路',d.circuitAuto.circuit.メーカー+' / '+d.circuitAuto.circuit.商品名);
+    (d.circuitAuto.accessories||[]).forEach(function(acc){
+      html+=row(acc.label,acc.メーカー+' / '+acc.商品名);
+    });
+    html+='</table>';
+  }
+
+  // 気道デバイス（IPPVのみ）
+  if(!d.isNPPV){
+    html+='<table class="print-table">';
+    html+=sectionHeader(d.isTrach?'気管切開カニューレ':'挿管チューブ');
+    var airwayStr=Object.values(d.airway).filter(Boolean).join(' / ');
+    html+=row('製品',airwayStr);
+    html+=row('カフ圧',d.cuff);
+    html+='</table>';
+  }
+
+  // V60マスク
+  if(d.v60mask&&Object.values(d.v60mask).some(Boolean)){
+    html+='<table class="print-table">';
+    html+=sectionHeader('V60用マスク');
+    html+=row('マスク',Object.values(d.v60mask).filter(Boolean).join(' / '));
+    html+='</table>';
+  }
 
   if(lr){
     html+='<table class="print-table">';
@@ -649,10 +779,10 @@ function buildReportHTML(d,forPrint){
       html+='<table class="print-table">';
       html+=sectionHeader('鎮静・鎮痛');
       (activeSed||[]).forEach(function(s,idx){
-        html+=row('鎮静薬'+(idx+1),(s.drug||'-')+(s.dose?' / '+s.dose:''));
+        html+=row('鎮静薬'+(idx+1),(s.drug||'-')+(s.dose?' / '+s.dose+'ml/h':''));
       });
       (activeAna||[]).forEach(function(a,idx){
-        html+=row('鎮痛薬'+(idx+1),(a.drug||'-')+(a.dose?' / '+a.dose:''));
+        html+=row('鎮痛薬'+(idx+1),(a.drug||'-')+(a.dose?' / '+a.dose+'ml/h':''));
       });
       html+='</table>';
     }
