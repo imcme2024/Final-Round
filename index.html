@@ -139,7 +139,7 @@ label{touch-action:manipulation;user-select:none}
 
 <div id="overview" class="tab-content active">
   <div class="container">
-    <h1>装着者一覧 <span style="font-size:12px;font-weight:400;color:#9ca3af;letter-spacing:0.05em">v1.6.2</span></h1>
+    <h1>装着者一覧 <span style="font-size:12px;font-weight:400;color:#9ca3af;letter-spacing:0.05em">v1.6.3</span></h1>
     <div class="checker-section">
       <h2>本日のチェック者</h2>
       <button onclick="openCheckerModal(false)" style="width:100%;padding:12px 16px;border:2px solid #d1d5db;border-radius:8px;background:#fff;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:14px">
@@ -1235,7 +1235,7 @@ function uploadToDrive(){return new Promise(function(resolve,reject){var lm=loca
 function manualSync(){if(!gdriveToken){alert('Google Drive連携が必要です');return;}if(!navigator.onLine){alert('オフラインのため同期できません');return;}var btn=document.getElementById('manual-sync-btn');if(btn){btn.disabled=true;btn.textContent='同期中...';}updateSyncStatus('syncing');fetch('https://www.googleapis.com/drive/v3/files/'+gdriveFileId+'?alt=media',{headers:{'Authorization':'Bearer '+gdriveToken}}).then(function(r){if(r.status===401)throw new Error('401');if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(data){var localModified=new Date(localStorage.getItem('v:lastModified')||0);var remoteModified=new Date(data.lastModified||data.lastSync||0);if(data.patients&&data.patients.length>0){var merged=mergePatients(st.patients,data.patients,localModified,remoteModified);st.patients=merged;if(remoteModified>localModified)st.checker=data.checker||st.checker;}localStorage.setItem('v:p',JSON.stringify(st.patients));localStorage.setItem('v:c',st.checker);return uploadToDrive();}).then(function(){syncFailCount=0;var now=new Date();lastSyncTime=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');updateSyncStatus('synced');if(btn){btn.disabled=false;btn.textContent='🔄 今すぐ同期';}reloadOrRefresh();}).catch(function(e){console.error('手動同期エラー:',e);if(btn){btn.disabled=false;btn.textContent='🔄 今すぐ同期';}if(e.message&&e.message.indexOf('401')>=0){gdriveToken=null;localStorage.removeItem('gdrive:token');localStorage.removeItem('gdrive:fileId');gdriveFileId=null;showManualSyncBtn(false);document.getElementById('gdrive-btn').textContent='☁️ Google Drive連携';document.getElementById('gdrive-btn').style.background='#4285f4';updateSyncStatus('none');alert('⚠️ Google Driveのログインが切れました。再連携してください。');}else{updateSyncStatus('error');alert('同期に失敗しました。');}});}
 
 // ===== テンポラリペースメーカ専用関数 =====
-var TMP_CHECK_ITEMS=['設定は装着時の設定か？（変わっている場合は医師に確認）','カバーは閉じられているか','固定ベルトはしっかり固定されている？','ペーシング用リードの白色のピンが直接本体に挿し込まれているか','接続部の増し締め（右回し！）','EDP-20は患者ケーブル接続部の接続確認（押し込んで確認！）','リード線の引っ張りがなく、余分なコードはしっかりと体とテープで固定されているか','セントラルモニタにて、設定レート以下になっていないか'];
+var TMP_CHECK_ITEMS=['設定は装着時の設定か？（変わっている場合は電子カルテで確認）','固定ベルトはしっかり固定されている？','中継コードに鰐口クリップが使われていないか？','接続部の増し締め（右回し！）','リード線の引っ張りがなく、余分なコードはしっかりと体とテープで固定されているか？','モニタにて、設定レート以下になっていないか？'];
 var TMP_DEVICES=[
   {id:'CP04',name:'EDP-20',modes:['VVI','VOO']},
   {id:'CP05',name:'モデル3077',modes:['VVI']},
