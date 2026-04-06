@@ -139,7 +139,7 @@ label{touch-action:manipulation;user-select:none}
 
 <div id="overview" class="tab-content active">
   <div class="container">
-    <h1>装着者一覧 <span style="font-size:12px;font-weight:400;color:#9ca3af;letter-spacing:0.05em">v1.6.5</span></h1>
+    <h1>装着者一覧 <span style="font-size:12px;font-weight:400;color:#9ca3af;letter-spacing:0.05em">v1.6.6</span></h1>
     <div class="checker-section">
       <h2>本日のチェック者</h2>
       <button onclick="openCheckerModal(false)" style="width:100%;padding:12px 16px;border:2px solid #d1d5db;border-radius:8px;background:#fff;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:14px">
@@ -1323,7 +1323,35 @@ function closeTmpWeanModal(){document.getElementById('tmpWeanModal').style.displ
 function showTmpWeanConfirm(){if(!document.getElementById('tmpWeanReason').value){alert('離脱理由を選択してください');return;}document.getElementById('tmpWeanConfirm').style.display='block';document.getElementById('tmpWeanDeleteBtn').style.display='none';document.getElementById('tmpWeanConfirmBtn').style.display='inline-block';}
 function executeTmpWean(){var dp=st.patients[st.weanIdx];dp.weaned=true;dp.weanDate=document.getElementById('tmpWeanDate').value;dp.weanReason=document.getElementById('tmpWeanReason').value;dp.weanNote=document.getElementById('tmpWeanNote').value||'';saveNow();closeTmpWeanModal();Array.from(document.getElementById('tabs').querySelectorAll('button')).forEach(function(t,i){if(i>0)t.remove();});Array.from(document.querySelectorAll('.tab-content')).forEach(function(c){if(c.id!=='overview')c.remove();});renderGrid();st.patients.forEach(function(p,i){if(!p.weaned)ensureTab(i,p);});sortTabs();showOverview();setTimeout(function(){alert('テンポラリ記録を削除しました');},100);}
 
-function checkBatteryAlert(i){var p=st.patients[i];if(!p||p.patientType!=='tmp')return;var today=getJSTDate();var skipKey='v:skipBattery:'+p.id;if(localStorage.getItem(skipKey)===today)return;var lastChange=p.lastBatteryChange||p.startDate;if(!lastChange)return;var days=daysDiff(lastChange,today);if(days>=14){currentBatteryAlertPatient=i;document.getElementById('batteryAlertTitle').textContent='電池交換時期です';document.getElementById('batteryAlertMessage').textContent='患者: '+p.name+'\n前回電池交換から'+days+'日経過しています。\n\n電池交換が必要です。';document.getElementById('batteryAlertModal').style.display='block';}}
+function getBatteryInterval(p){
+  // lastBatteryChange以降のレコードに3.1V以上の出力があれば7日、なければ14日
+  var lastChange=p.lastBatteryChange||p.startDate;
+  if(!p.records)return 14;
+  var highOutput=false;
+  p.records.forEach(function(r){
+    if(!r.date||!lastChange)return;
+    if(r.date<lastChange)return;
+    var v=parseFloat(r.output);
+    if(!isNaN(v)&&v>=3.1)highOutput=true;
+  });
+  return highOutput?7:14;
+}
+function checkBatteryAlert(i){
+  var p=st.patients[i];if(!p||p.patientType!=='tmp')return;
+  var today=getJSTDate();
+  var skipKey='v:skipBattery:'+p.id;
+  if(localStorage.getItem(skipKey)===today)return;
+  var lastChange=p.lastBatteryChange||p.startDate;
+  if(!lastChange)return;
+  var days=daysDiff(lastChange,today);
+  var interval=getBatteryInterval(p);
+  if(days>=interval){
+    currentBatteryAlertPatient=i;
+    document.getElementById('batteryAlertTitle').textContent='電池交換時期です';
+    document.getElementById('batteryAlertMessage').textContent='患者: '+p.name+'\n前回電池交換から'+days+'日経過しています。\n\n電池交換が必要です。（インターバル: '+interval+'日）';
+    document.getElementById('batteryAlertModal').style.display='block';
+  }
+}
 function performBatteryChange(){if(currentBatteryAlertPatient===null)return;var i=currentBatteryAlertPatient;var p=st.patients[i];var today=getJSTDate();p.lastBatteryChange=today;if(p.records&&p.records.length>0){var targetRec=null;for(var ri=0;ri<p.records.length;ri++){if(p.records[ri].date===today){targetRec=p.records[ri];break;}}if(!targetRec)targetRec=p.records[p.records.length-1];targetRec.notes=(targetRec.notes?targetRec.notes+' / ':'')+'【電池交換実施】';}saveNow();closeBatteryAlert();var cnt=document.getElementById('patient-'+i);if(cnt)renderTmpFull(i,p,cnt);}
 function skipBatteryAlert(){if(currentBatteryAlertPatient!==null){var p=st.patients[currentBatteryAlertPatient];if(p)localStorage.setItem('v:skipBattery:'+p.id,getJSTDate());}closeBatteryAlert();}
 function closeBatteryAlert(){document.getElementById('batteryAlertModal').style.display='none';currentBatteryAlertPatient=null;}
