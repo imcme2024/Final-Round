@@ -139,7 +139,7 @@ label{touch-action:manipulation;user-select:none}
 
 <div id="overview" class="tab-content active">
   <div class="container">
-    <h1>装着者一覧 <span style="font-size:12px;font-weight:400;color:#9ca3af;letter-spacing:0.05em">v1.6.7</span></h1>
+    <h1>装着者一覧 <span style="font-size:12px;font-weight:400;color:#9ca3af;letter-spacing:0.05em">v1.6.8</span></h1>
     <div class="checker-section">
       <h2>本日のチェック者</h2>
       <button onclick="openCheckerModal(false)" style="width:100%;padding:12px 16px;border:2px solid #d1d5db;border-radius:8px;background:#fff;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:14px">
@@ -952,11 +952,14 @@ function generateExcelHTML(weanedPatients){var html='<!DOCTYPE html><html><head>
 
 function init(){showLoading();try{var p=localStorage.getItem('v:p');if(p)st.patients=JSON.parse(p);var c=localStorage.getItem('v:c');if(c)st.checker=c;var wids=localStorage.getItem('v:weaned_ids');st.weanedIds=wids?JSON.parse(wids):[];st.patients.forEach(function(patient){if(patient.patientType==='tmp'){if(!patient.lastBatteryChange)patient.lastBatteryChange=patient.startDate;if(patient.records){patient.records.forEach(function(record){if(!record.hasOwnProperty('notes'))record.notes='';if(!record.checks)record.checks={};});}}else{if(!patient.intubationType)patient.intubationType='intubation';if(!patient.humidificationType)patient.humidificationType='hmef';if(!patient.lastCircuitChange)patient.lastCircuitChange=null;if(!patient.displayId)patient.displayId=patient.id;if(patient.records){patient.records.forEach(function(record){if(!record.hasOwnProperty('notes'))record.notes='';});}}if(!patient.displayId)patient.displayId=patient.id;});loadMaster();renderGrid();updateChecker();initCheckerButtons();st.patients.forEach(function(p,i){if(!p.weaned)ensureTab(i,p);});sortTabs();checkAndBackup();updateBackupStatus();addEnterKeyHints();addTouchFocusHints();
   // 初回起動時チェック者強制選択
-  var today=getJSTDate();
-  if(localStorage.getItem('v:lastCheckerDate')!==today){
-    localStorage.setItem('v:lastCheckerDate',today);
-    setTimeout(function(){openCheckerModal(true);},300);
+  // リロード後のチェック者選択フラグ処理
+  if(localStorage.getItem('v:pendingCheckerSelect')==='1'){
+    localStorage.removeItem('v:pendingCheckerSelect');
+    setTimeout(function(){showCheckerIfNeeded();},300);
   }
+  var today=getJSTDate();
+  // チェック者選択は同期完了後に呼ぶのでここでは行わない
+  // if(localStorage.getItem('v:lastCheckerDate')!==today){...}
 }catch(e){alert('初期化エラー:'+e.message);}hideLoading();}
 function initCheckerButtons(){var container=document.getElementById('checkerButtons');if(!container)return;container.innerHTML='';CHECKER_NAMES.forEach(function(name){var btn=document.createElement('button');btn.className='btn btn-secondary';btn.style.cssText='padding:14px;font-size:14px';btn.textContent=name;btn.onclick=function(){selectChecker(name);};container.appendChild(btn);});}
 
@@ -1215,7 +1218,16 @@ function updateSyncStatus(status){var st2=document.getElementById('gdrive-status
 
 function _showFSTtoast(){var t=document.createElement('div');t.style.cssText='position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#1e40af;color:white;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.2);white-space:nowrap';t.textContent='🔄 最新データを取得中...';document.body.appendChild(t);return t;}
 function _hideFSTtoast(t,ok){if(!t)return;t.textContent=ok?'✓ 最新データを取得しました':'⚠️ オフラインのためスキップ';t.style.background=ok?'#059669':'#6b7280';setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},2500);}
-function initGoogleDrive(){var token=localStorage.getItem('gdrive:token');var fileId=localStorage.getItem('gdrive:fileId');if(token){gdriveToken=token;gdriveFileId=fileId;document.getElementById('gdrive-btn').textContent='☁️ 同期有効';document.getElementById('gdrive-btn').style.background='#34a853';showManualSyncBtn(true);startAutoSync();scheduleTokenRefresh();if(navigator.onLine){var _t=_showFSTtoast();var _origUpd=window.updateSyncStatus;var _fstDone=false;window.updateSyncStatus=function(s){_origUpd(s);if(!_fstDone&&(s==='synced'||s==='error'||s==='none')){_fstDone=true;_hideFSTtoast(_t,s==='synced');window.updateSyncStatus=_origUpd;}};var _tokenTime=parseInt(localStorage.getItem('gdrive:tokenTime')||'0');var _elapsed=Date.now()-_tokenTime;if(_elapsed>50*60*1000){var _cid='749739667971-t8rcijk84v2lj6aghuu3f04disomur39.apps.googleusercontent.com';var _ruri=window.location.origin+window.location.pathname;var _aurl='https://accounts.google.com/o/oauth2/v2/auth?client_id='+_cid+'&redirect_uri='+encodeURIComponent(_ruri)+'&response_type=token&scope='+encodeURIComponent('https://www.googleapis.com/auth/drive.file')+'&prompt=none';var _ifr=document.createElement('iframe');_ifr.style.display='none';_ifr.src=_aurl;_ifr.onload=function(){try{var _h=_ifr.contentWindow.location.hash;if(_h&&_h.indexOf('access_token')>=0){var _p=new URLSearchParams(_h.substring(1));var _tk=_p.get('access_token');if(_tk){gdriveToken=_tk;localStorage.setItem('gdrive:token',_tk);localStorage.setItem('gdrive:tokenTime',Date.now().toString());}}}catch(e){console.warn('初回リフレッシュ失敗',e);}document.body.removeChild(_ifr);forceSyncFromDrive();};document.body.appendChild(_ifr);}else{forceSyncFromDrive();}}else{var _t=_showFSTtoast();_hideFSTtoast(_t,false);}}}
+function showCheckerIfNeeded(){
+  var today=getJSTDate();
+  if(localStorage.getItem('v:lastCheckerDate')!==today){
+    localStorage.setItem('v:lastCheckerDate',today);
+    setTimeout(function(){openCheckerModal(true);},300);
+  }
+}
+
+function initGoogleDrive(){var token=localStorage.getItem('gdrive:token');var fileId=localStorage.getItem('gdrive:fileId');if(token){gdriveToken=token;gdriveFileId=fileId;document.getElementById('gdrive-btn').textContent='☁️ 同期有効';document.getElementById('gdrive-btn').style.background='#34a853';showManualSyncBtn(true);startAutoSync();scheduleTokenRefresh();if(navigator.onLine){var _t=_showFSTtoast();var _origUpd=window.updateSyncStatus;var _fstDone=false;window.updateSyncStatus=function(s){_origUpd(s);if(!_fstDone&&(s==='synced'||s==='error'||s==='none')){_fstDone=true;_hideFSTtoast(_t,s==='synced');window.updateSyncStatus=_origUpd;}};var _tokenTime=parseInt(localStorage.getItem('gdrive:tokenTime')||'0');var _elapsed=Date.now()-_tokenTime;if(_elapsed>50*60*1000){var _cid='749739667971-t8rcijk84v2lj6aghuu3f04disomur39.apps.googleusercontent.com';var _ruri=window.location.origin+window.location.pathname;var _aurl='https://accounts.google.com/o/oauth2/v2/auth?client_id='+_cid+'&redirect_uri='+encodeURIComponent(_ruri)+'&response_type=token&scope='+encodeURIComponent('https://www.googleapis.com/auth/drive.file')+'&prompt=none';var _ifr=document.createElement('iframe');_ifr.style.display='none';_ifr.src=_aurl;_ifr.onload=function(){try{var _h=_ifr.contentWindow.location.hash;if(_h&&_h.indexOf('access_token')>=0){var _p=new URLSearchParams(_h.substring(1));var _tk=_p.get('access_token');if(_tk){gdriveToken=_tk;localStorage.setItem('gdrive:token',_tk);localStorage.setItem('gdrive:tokenTime',Date.now().toString());}}}catch(e){console.warn('初回リフレッシュ失敗',e);}document.body.removeChild(_ifr);forceSyncFromDrive();};document.body.appendChild(_ifr);}else{forceSyncFromDrive();}}else{var _t=_showFSTtoast();_hideFSTtoast(_t,false);showCheckerIfNeeded();}}else{// Drive未連携の場合もチェック者選択を表示
+  showCheckerIfNeeded();}}
 function toggleGoogleDrive(){if(gdriveToken){if(confirm('Google Drive連携を解除しますか？')){gdriveToken=null;gdriveFileId=null;localStorage.removeItem('gdrive:token');localStorage.removeItem('gdrive:fileId');stopAutoSync();document.getElementById('gdrive-btn').textContent='☁️ Google Drive連携';document.getElementById('gdrive-btn').style.background='#4285f4';showManualSyncBtn(false);updateSyncStatus('none');alert('Google Drive連携を解除しました');}}else authenticateGoogleDrive();}
 function authenticateGoogleDrive(){var clientId='749739667971-t8rcijk84v2lj6aghuu3f04disomur39.apps.googleusercontent.com';var redirectUri=window.location.origin+window.location.pathname;var authUrl='https://accounts.google.com/o/oauth2/v2/auth?client_id='+clientId+'&redirect_uri='+encodeURIComponent(redirectUri)+'&response_type=token&scope='+encodeURIComponent('https://www.googleapis.com/auth/drive.file');window.location.href=authUrl;}
 function silentTokenRefresh(){var clientId='749739667971-t8rcijk84v2lj6aghuu3f04disomur39.apps.googleusercontent.com';var redirectUri=window.location.origin+window.location.pathname;var authUrl='https://accounts.google.com/o/oauth2/v2/auth?client_id='+clientId+'&redirect_uri='+encodeURIComponent(redirectUri)+'&response_type=token&scope='+encodeURIComponent('https://www.googleapis.com/auth/drive.file')+'&prompt=none';var iframe=document.createElement('iframe');iframe.style.display='none';iframe.src=authUrl;iframe.onload=function(){try{var hash=iframe.contentWindow.location.hash;if(hash&&hash.indexOf('access_token')>=0){var params=new URLSearchParams(hash.substring(1));var token=params.get('access_token');if(token){gdriveToken=token;localStorage.setItem('gdrive:token',token);localStorage.setItem('gdrive:tokenTime',Date.now().toString());}}}catch(e){console.warn('サイレントリフレッシュ失敗');gdriveToken=null;localStorage.removeItem('gdrive:token');document.getElementById('gdrive-btn').textContent='☁️ Google Drive連携';document.getElementById('gdrive-btn').style.background='#4285f4';showManualSyncBtn(false);alert('Google Driveのセッションが期限切れです。再度連携してください。');}document.body.removeChild(iframe);};document.body.appendChild(iframe);}
@@ -1285,7 +1297,15 @@ function forceSyncFromDrive(){
     updateSyncStatus('synced');
     // ローカルのみ患者がいればDriveにも書き込む
     if(localOnlyPatients.length>0)syncToGoogleDrive();
-    reloadOrRefresh();
+    // 同期完了後にreloadOrRefreshしてからチェック者選択
+    var needReload=JSON.stringify(st.patients)!==JSON.stringify(data.patients.filter(function(p){return!p.weaned;}));
+    if(needReload){
+      // reloadOrRefreshの代わりに直接リロード後にチェック者選択フラグを立てる
+      localStorage.setItem('v:pendingCheckerSelect','1');
+      reloadOrRefresh();
+    }else{
+      showCheckerIfNeeded();
+    }
   })
   .catch(function(e){
     console.error('起動時同期エラー:',e);
