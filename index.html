@@ -139,7 +139,7 @@ label{touch-action:manipulation;user-select:none}
 
 <div id="overview" class="tab-content active">
   <div class="container">
-    <h1>装着者一覧 <span style="font-size:12px;font-weight:400;color:#9ca3af;letter-spacing:0.05em">v1.7.0</span></h1>
+    <h1>装着者一覧 <span style="font-size:12px;font-weight:400;color:#9ca3af;letter-spacing:0.05em">v1.7.1</span></h1>
     <div class="checker-section">
       <h2>本日のチェック者</h2>
       <button onclick="openCheckerModal(false)" style="width:100%;padding:12px 16px;border:2px solid #d1d5db;border-radius:8px;background:#fff;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:14px">
@@ -1307,28 +1307,47 @@ function forceSyncFromDrive(){
   .then(function(data){
     syncFailCount=0;
     if(!data.patients){var now=new Date();lastSyncTime=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');updateSyncStatus('synced');showCheckerIfNeeded();return;}
-    var driveActiveIds=data.patients.filter(function(p){return!p.weaned;}).map(function(p){return p.id;});
+    var localModified=new Date(localStorage.getItem('v:lastModified')||0);
+    var remoteModified=new Date(data.lastModified||data.lastSync||0);
+    var localStr=JSON.stringify(st.patients);
     var driveActive=data.patients.filter(function(p){return!p.weaned;});
+    var driveActiveIds=driveActive.map(function(p){return p.id;});
     var driveWeanedIds=data.patients.filter(function(p){return p.weaned;}).map(function(p){return p.id;});
-    var localOnlyPatients=st.patients.filter(function(p){return!p.weaned&&driveActiveIds.indexOf(p.id)===-1&&driveWeanedIds.indexOf(p.id)===-1;});
-    var merged=driveActive.concat(localOnlyPatients);
     var localWeanedIds=st.weanedIds||[];
     driveWeanedIds.forEach(function(id){if(localWeanedIds.indexOf(id)===-1)localWeanedIds.push(id);});
+    // 片方にしかない患者を特定
+    var localOnlyPatients=st.patients.filter(function(p){
+      return!p.weaned&&driveActiveIds.indexOf(p.id)===-1&&driveWeanedIds.indexOf(p.id)===-1;
+    });
+    var driveOnlyPatients=driveActive.filter(function(p){
+      var localIds=st.patients.map(function(x){return x.id;});
+      return localIds.indexOf(p.id)===-1;
+    });
+    var merged;
+    if(localModified>=remoteModified){
+      // ローカルが新しい→ローカル優先、Driveにしかない患者も追加
+      merged=st.patients.filter(function(p){return!p.weaned;}).concat(driveOnlyPatients);
+    }else{
+      // Driveが新しい→Drive優先、ローカルにしかない患者も追加
+      merged=driveActive.concat(localOnlyPatients);
+    }
     merged=merged.filter(function(p){return localWeanedIds.indexOf(p.id)===-1;});
-    var localStr=JSON.stringify(st.patients);
     var mergedStr=JSON.stringify(merged);
     st.patients=merged;
     st.weanedIds=localWeanedIds;
-    st.checker=data.checker||st.checker;
+    // checkerはどちらが新しくても新しい方を使う
+    if(remoteModified>localModified)st.checker=data.checker||st.checker;
     localStorage.setItem('v:p',JSON.stringify(st.patients));
     localStorage.setItem('v:weaned_ids',JSON.stringify(st.weanedIds));
     localStorage.setItem('v:c',st.checker);
-    if(data.lastModified)localStorage.setItem('v:lastModified',data.lastModified);
+    // lastModifiedは新しい方を保持
+    var newModified=localModified>=remoteModified?localModified.toISOString():(data.lastModified||data.lastSync);
+    if(newModified)localStorage.setItem('v:lastModified',newModified);
     var now=new Date();lastSyncTime=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
     updateSyncStatus('synced');
-    if(localOnlyPatients.length>0)syncToGoogleDrive();
+    // ローカルが新しい or ローカルのみ患者がいればDriveに書き込む
+    if(localModified>=remoteModified||localOnlyPatients.length>0)syncToGoogleDrive();
     if(mergedStr!==localStr){
-      // データが変わった場合はリロード、チェック者選択フラグを立ててから
       localStorage.setItem('v:pendingCheckerSelect','1');
       location.reload();
     }else{
