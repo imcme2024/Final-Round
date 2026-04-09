@@ -139,7 +139,7 @@ label{touch-action:manipulation;user-select:none}
 
 <div id="overview" class="tab-content active">
   <div class="container">
-    <h1>装着者一覧 <span style="font-size:12px;font-weight:400;color:#9ca3af;letter-spacing:0.05em">v1.6.8</span></h1>
+    <h1>装着者一覧 <span style="font-size:12px;font-weight:400;color:#9ca3af;letter-spacing:0.05em">v1.6.9</span></h1>
     <div class="checker-section">
       <h2>本日のチェック者</h2>
       <button onclick="openCheckerModal(false)" style="width:100%;padding:12px 16px;border:2px solid #d1d5db;border-radius:8px;background:#fff;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:14px">
@@ -1226,8 +1226,39 @@ function showCheckerIfNeeded(){
   }
 }
 
-function initGoogleDrive(){var token=localStorage.getItem('gdrive:token');var fileId=localStorage.getItem('gdrive:fileId');if(token){gdriveToken=token;gdriveFileId=fileId;document.getElementById('gdrive-btn').textContent='☁️ 同期有効';document.getElementById('gdrive-btn').style.background='#34a853';showManualSyncBtn(true);startAutoSync();scheduleTokenRefresh();if(navigator.onLine){var _t=_showFSTtoast();var _origUpd=window.updateSyncStatus;var _fstDone=false;window.updateSyncStatus=function(s){_origUpd(s);if(!_fstDone&&(s==='synced'||s==='error'||s==='none')){_fstDone=true;_hideFSTtoast(_t,s==='synced');window.updateSyncStatus=_origUpd;}};var _tokenTime=parseInt(localStorage.getItem('gdrive:tokenTime')||'0');var _elapsed=Date.now()-_tokenTime;if(_elapsed>50*60*1000){var _cid='749739667971-t8rcijk84v2lj6aghuu3f04disomur39.apps.googleusercontent.com';var _ruri=window.location.origin+window.location.pathname;var _aurl='https://accounts.google.com/o/oauth2/v2/auth?client_id='+_cid+'&redirect_uri='+encodeURIComponent(_ruri)+'&response_type=token&scope='+encodeURIComponent('https://www.googleapis.com/auth/drive.file')+'&prompt=none';var _ifr=document.createElement('iframe');_ifr.style.display='none';_ifr.src=_aurl;_ifr.onload=function(){try{var _h=_ifr.contentWindow.location.hash;if(_h&&_h.indexOf('access_token')>=0){var _p=new URLSearchParams(_h.substring(1));var _tk=_p.get('access_token');if(_tk){gdriveToken=_tk;localStorage.setItem('gdrive:token',_tk);localStorage.setItem('gdrive:tokenTime',Date.now().toString());}}}catch(e){console.warn('初回リフレッシュ失敗',e);}document.body.removeChild(_ifr);forceSyncFromDrive();};document.body.appendChild(_ifr);}else{forceSyncFromDrive();}}else{var _t=_showFSTtoast();_hideFSTtoast(_t,false);showCheckerIfNeeded();}}else{// Drive未連携の場合もチェック者選択を表示
-  showCheckerIfNeeded();}}
+function initGoogleDrive(){
+  var token=localStorage.getItem('gdrive:token');
+  var fileId=localStorage.getItem('gdrive:fileId');
+  if(token){
+    gdriveToken=token;gdriveFileId=fileId;
+    document.getElementById('gdrive-btn').textContent='☁️ 同期有効';
+    document.getElementById('gdrive-btn').style.background='#34a853';
+    showManualSyncBtn(true);startAutoSync();scheduleTokenRefresh();
+    // リロード後（pendingCheckerSelectあり）はforceSyncをスキップ
+    if(localStorage.getItem('v:pendingCheckerSelect')==='1'){
+      showCheckerIfNeeded();return;
+    }
+    if(navigator.onLine){
+      var _t=_showFSTtoast();
+      var _origUpd=window.updateSyncStatus;var _fstDone=false;
+      window.updateSyncStatus=function(s){_origUpd(s);if(!_fstDone&&(s==='synced'||s==='error'||s==='none')){_fstDone=true;_hideFSTtoast(_t,s==='synced');window.updateSyncStatus=_origUpd;}};
+      var _tokenTime=parseInt(localStorage.getItem('gdrive:tokenTime')||'0');
+      var _elapsed=Date.now()-_tokenTime;
+      if(_elapsed>50*60*1000){
+        var _cid='749739667971-t8rcijk84v2lj6aghuu3f04disomur39.apps.googleusercontent.com';
+        var _ruri=window.location.origin+window.location.pathname;
+        var _aurl='https://accounts.google.com/o/oauth2/v2/auth?client_id='+_cid+'&redirect_uri='+encodeURIComponent(_ruri)+'&response_type=token&scope='+encodeURIComponent('https://www.googleapis.com/auth/drive.file')+'&prompt=none';
+        var _ifr=document.createElement('iframe');_ifr.style.display='none';_ifr.src=_aurl;
+        _ifr.onload=function(){
+          try{var _h=_ifr.contentWindow.location.hash;if(_h&&_h.indexOf('access_token')>=0){var _p=new URLSearchParams(_h.substring(1));var _tk=_p.get('access_token');if(_tk){gdriveToken=_tk;localStorage.setItem('gdrive:token',_tk);localStorage.setItem('gdrive:tokenTime',Date.now().toString());}}}
+          catch(e){console.warn('初回リフレッシュ失敗',e);}
+          document.body.removeChild(_ifr);forceSyncFromDrive();
+        };
+        document.body.appendChild(_ifr);
+      }else{forceSyncFromDrive();}
+    }else{var _t=_showFSTtoast();_hideFSTtoast(_t,false);showCheckerIfNeeded();}
+  }else{showCheckerIfNeeded();}
+}
 function toggleGoogleDrive(){if(gdriveToken){if(confirm('Google Drive連携を解除しますか？')){gdriveToken=null;gdriveFileId=null;localStorage.removeItem('gdrive:token');localStorage.removeItem('gdrive:fileId');stopAutoSync();document.getElementById('gdrive-btn').textContent='☁️ Google Drive連携';document.getElementById('gdrive-btn').style.background='#4285f4';showManualSyncBtn(false);updateSyncStatus('none');alert('Google Drive連携を解除しました');}}else authenticateGoogleDrive();}
 function authenticateGoogleDrive(){var clientId='749739667971-t8rcijk84v2lj6aghuu3f04disomur39.apps.googleusercontent.com';var redirectUri=window.location.origin+window.location.pathname;var authUrl='https://accounts.google.com/o/oauth2/v2/auth?client_id='+clientId+'&redirect_uri='+encodeURIComponent(redirectUri)+'&response_type=token&scope='+encodeURIComponent('https://www.googleapis.com/auth/drive.file');window.location.href=authUrl;}
 function silentTokenRefresh(){var clientId='749739667971-t8rcijk84v2lj6aghuu3f04disomur39.apps.googleusercontent.com';var redirectUri=window.location.origin+window.location.pathname;var authUrl='https://accounts.google.com/o/oauth2/v2/auth?client_id='+clientId+'&redirect_uri='+encodeURIComponent(redirectUri)+'&response_type=token&scope='+encodeURIComponent('https://www.googleapis.com/auth/drive.file')+'&prompt=none';var iframe=document.createElement('iframe');iframe.style.display='none';iframe.src=authUrl;iframe.onload=function(){try{var hash=iframe.contentWindow.location.hash;if(hash&&hash.indexOf('access_token')>=0){var params=new URLSearchParams(hash.substring(1));var token=params.get('access_token');if(token){gdriveToken=token;localStorage.setItem('gdrive:token',token);localStorage.setItem('gdrive:tokenTime',Date.now().toString());}}}catch(e){console.warn('サイレントリフレッシュ失敗');gdriveToken=null;localStorage.removeItem('gdrive:token');document.getElementById('gdrive-btn').textContent='☁️ Google Drive連携';document.getElementById('gdrive-btn').style.background='#4285f4';showManualSyncBtn(false);alert('Google Driveのセッションが期限切れです。再度連携してください。');}document.body.removeChild(iframe);};document.body.appendChild(iframe);}
@@ -1264,28 +1295,24 @@ function mergePatients(lp,rp,localModified,remoteModified){
 }
 // 起動時強制同期：Drive優先で上書き、ローカルにしかない患者は保持
 function forceSyncFromDrive(){
-  if(!gdriveToken||!gdriveFileId)return;
-  if(!navigator.onLine){updateSyncStatus('offline');return;}
+  if(!gdriveToken||!gdriveFileId){showCheckerIfNeeded();return;}
+  if(!navigator.onLine){updateSyncStatus('offline');showCheckerIfNeeded();return;}
   updateSyncStatus('syncing');
   fetch('https://www.googleapis.com/drive/v3/files/'+gdriveFileId+'?alt=media',{headers:{'Authorization':'Bearer '+gdriveToken}})
   .then(function(r){if(r.status===401)throw new Error('401');if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
   .then(function(data){
     syncFailCount=0;
-    if(!data.patients){var now=new Date();lastSyncTime=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');updateSyncStatus('synced');return;}
-    // Drive上のアクティブ患者IDセット
+    if(!data.patients){var now=new Date();lastSyncTime=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');updateSyncStatus('synced');showCheckerIfNeeded();return;}
     var driveActiveIds=data.patients.filter(function(p){return!p.weaned;}).map(function(p){return p.id;});
     var driveActive=data.patients.filter(function(p){return!p.weaned;});
     var driveWeanedIds=data.patients.filter(function(p){return p.weaned;}).map(function(p){return p.id;});
-    // ローカルにしかない患者（Drive未到達の新規登録）を保持
-    var localOnlyPatients=st.patients.filter(function(p){
-      return!p.weaned&&driveActiveIds.indexOf(p.id)===-1&&driveWeanedIds.indexOf(p.id)===-1;
-    });
-    // Drive優先でマージ：Drive患者＋ローカルのみ患者
+    var localOnlyPatients=st.patients.filter(function(p){return!p.weaned&&driveActiveIds.indexOf(p.id)===-1&&driveWeanedIds.indexOf(p.id)===-1;});
     var merged=driveActive.concat(localOnlyPatients);
-    // 離脱済みIDを更新
     var localWeanedIds=st.weanedIds||[];
     driveWeanedIds.forEach(function(id){if(localWeanedIds.indexOf(id)===-1)localWeanedIds.push(id);});
     merged=merged.filter(function(p){return localWeanedIds.indexOf(p.id)===-1;});
+    var localStr=JSON.stringify(st.patients);
+    var mergedStr=JSON.stringify(merged);
     st.patients=merged;
     st.weanedIds=localWeanedIds;
     st.checker=data.checker||st.checker;
@@ -1295,14 +1322,11 @@ function forceSyncFromDrive(){
     if(data.lastModified)localStorage.setItem('v:lastModified',data.lastModified);
     var now=new Date();lastSyncTime=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
     updateSyncStatus('synced');
-    // ローカルのみ患者がいればDriveにも書き込む
     if(localOnlyPatients.length>0)syncToGoogleDrive();
-    // 同期完了後にreloadOrRefreshしてからチェック者選択
-    var needReload=JSON.stringify(st.patients)!==JSON.stringify(data.patients.filter(function(p){return!p.weaned;}));
-    if(needReload){
-      // reloadOrRefreshの代わりに直接リロード後にチェック者選択フラグを立てる
+    if(mergedStr!==localStr){
+      // データが変わった場合はリロード、チェック者選択フラグを立ててから
       localStorage.setItem('v:pendingCheckerSelect','1');
-      reloadOrRefresh();
+      location.reload();
     }else{
       showCheckerIfNeeded();
     }
@@ -1317,6 +1341,7 @@ function forceSyncFromDrive(){
       updateSyncStatus('none');
       alert('⚠️ Google Driveのログインが切れました。\n\n「☁️ Google Drive連携」ボタンを押して再連携してください。');
     }else{updateSyncStatus('error');}
+    showCheckerIfNeeded();
   });
 }
 
